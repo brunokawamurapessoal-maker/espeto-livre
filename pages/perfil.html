@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu perfil — Espeto Livre</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../assets/images/logo.png">
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="cabecalho">
+  <div class="container">
+    <a href="../index.html" class="marca">
+      <img src="../assets/images/logo.png" alt="Logomarca Espeto Livre">
+      <div class="texto-marca">
+        <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        <span>Na brasa, do seu jeito</span>
+      </div>
+    </a>
+    <nav class="nav-principal">
+      <a href="../index.html">Cardápio</a>
+      <a href="sobre.html">Sobre</a>
+      <a href="contato.html">Contato</a>
+    </nav>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="area-cliente" id="area-cliente" hidden>
+        <button class="saudacao-cliente" id="btn-saudacao" type="button">Olá, <strong id="saudacao-nome"></strong> <span class="seta-menu">▾</span></button>
+        <div class="menu-flutuante-cliente">
+          <a href="perfil.html" class="ativo-menu">👤 Meu perfil</a>
+          <button type="button" id="btn-logout-cliente">🚪 Sair</button>
+        </div>
+      </div>
+      <span class="status-loja"><span class="ponto"></span> Aberto agora</span>
+      <a href="../index.html" class="btn-carrinho" style="text-decoration:none;">🛒 Pedir agora</a>
+      <button class="menu-mobile-toggle" aria-label="Abrir menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<main class="pagina-interna container" id="pagina-perfil">
+  <div class="titulo-pagina">
+    <span class="selo">👤 Minha conta</span>
+    <h1>Seus dados e seu histórico com a gente.</h1>
+    <p>Mantenha seus dados atualizados e veja o que você mais pede — a gente usa isso pra te dar boas sugestões.</p>
+  </div>
+
+  <!-- ============ DADOS CADASTRAIS ============ -->
+  <section class="cartao-perfil">
+    <h2>Dados cadastrais</h2>
+
+    <div id="visualizacao-perfil">
+      <ul class="lista-dados-perfil">
+        <li><span>Nome</span><strong id="perfil-nome-exibicao">—</strong></li>
+        <li><span>WhatsApp</span><strong id="perfil-whatsapp-exibicao">—</strong></li>
+        <li><span>E-mail</span><strong id="perfil-email-exibicao">—</strong></li>
+        <li><span>Endereço</span><strong id="perfil-endereco-exibicao">—</strong></li>
+      </ul>
+      <div class="rodape-cartao-perfil">
+        <button type="button" class="btn btn-primario" id="btn-editar-perfil">✏️ Editar dados</button>
+      </div>
+    </div>
+
+    <form id="form-editar-perfil" hidden>
+      <div class="grade-formulario">
+        <div class="campo">
+          <label for="perfil-campo-nome">Nome</label>
+          <input type="text" id="perfil-campo-nome" required>
+        </div>
+        <div class="campo">
+          <label for="perfil-campo-telefone">WhatsApp</label>
+          <input type="tel" id="perfil-campo-telefone" inputmode="numeric" required>
+        </div>
+        <div class="campo largo">
+          <label for="perfil-campo-email">E-mail</label>
+          <input type="email" id="perfil-campo-email" placeholder="seu@email.com">
+        </div>
+        <div class="campo largo"><hr style="border:none; border-top:1px dashed var(--linha); margin:4px 0 8px;"></div>
+        <div class="campo">
+          <label for="perfil-campo-bairro">Bairro</label>
+          <select id="perfil-campo-bairro"><option value="">Selecione...</option></select>
+        </div>
+        <div class="campo">
+          <label for="perfil-campo-numero">Número</label>
+          <input type="text" id="perfil-campo-numero" placeholder="Nº">
+        </div>
+        <div class="campo largo">
+          <label for="perfil-campo-rua">Rua</label>
+          <input type="text" id="perfil-campo-rua" placeholder="Nome da rua">
+        </div>
+        <div class="campo">
+          <label for="perfil-campo-complemento">Complemento</label>
+          <input type="text" id="perfil-campo-complemento" placeholder="Apto, bloco...">
+        </div>
+        <div class="campo">
+          <label for="perfil-campo-referencia">Ponto de referência</label>
+          <input type="text" id="perfil-campo-referencia" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="rodape-cartao-perfil">
+        <button type="button" class="btn btn-fantasma" id="btn-cancelar-edicao-perfil">Cancelar</button>
+        <button type="submit" class="btn btn-primario">Salvar alterações</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ============ HISTÓRICO E SUGESTÕES ============ -->
+  <section class="cartao-perfil">
+    <h2>Histórico de pedidos</h2>
+
+    <div id="historico-vazio" class="vazio-perfil" hidden>
+      <div class="icone">🍢</div>
+      <p>Você ainda não fez nenhum pedido por aqui.</p>
+      <a href="../index.html" class="btn btn-primario">Ver cardápio e pedir</a>
+    </div>
+
+    <div id="historico-conteudo" hidden>
+      <h3 class="subtitulo-perfil">Seus favoritos</h3>
+      <div class="lista-favoritos" id="lista-itens-favoritos"></div>
+
+      <div class="bloco-sugestao" id="bloco-sugestao" hidden>
+        <span class="icone">💡</span>
+        <p id="texto-sugestao"></p>
+      </div>
+
+      <h3 class="subtitulo-perfil" style="margin-top:28px;">Pedidos anteriores</h3>
+      <div class="lista-historico" id="lista-historico-pedidos"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <div class="container">
+    <div class="grade">
+      <div>
+        <div class="marca-rodape">
+          <img src="../assets/images/logo.png" alt="Espeto Livre">
+          <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        </div>
+        <p>Espetinhos feitos na brasa, com ingredientes selecionados e aquele tempero que só quem entende de churrasco de rua sabe fazer.</p>
+        <div class="redes">
+          <a href="#" data-cfg-href="instagram" target="_blank" aria-label="Instagram">📷</a>
+          <a href="#" data-cfg-href="whatsapp" target="_blank" aria-label="WhatsApp">💬</a>
+        </div>
+      </div>
+      <div>
+        <h4>Navegação</h4>
+        <ul>
+          <li><a href="../index.html">Cardápio</a></li>
+          <li><a href="sobre.html">Sobre nós</a></li>
+          <li><a href="contato.html">Contato</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Horário de funcionamento</h4>
+        <table class="tabela-horarios"><tbody id="tabela-horarios-corpo-rodape"></tbody></table>
+      </div>
+    </div>
+    <p class="copy">© <span id="ano-atual"></span> <span data-cfg="nomeLoja">Espeto Livre</span>. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<script src="../assets/js/scripts.js"></script>
+</body>
+</html>

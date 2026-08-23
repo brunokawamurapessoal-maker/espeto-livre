@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sobre — Espeto Livre</title>
+<meta name="description" content="Conheça a história do Espeto Livre: espetinhos na brasa feitos com ingredientes selecionados em Fortaleza.">
+<link rel="icon" href="../assets/images/logo.png">
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="cabecalho">
+  <div class="container">
+    <a href="../index.html" class="marca">
+      <img src="../assets/images/logo.png" alt="Logomarca Espeto Livre">
+      <div class="texto-marca">
+        <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        <span>Na brasa, do seu jeito</span>
+      </div>
+    </a>
+    <nav class="nav-principal">
+      <a href="../index.html">Cardápio</a>
+      <a href="sobre.html" class="ativo">Sobre</a>
+      <a href="contato.html">Contato</a>
+    </nav>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="area-cliente" id="area-cliente" hidden>
+        <button class="saudacao-cliente" id="btn-saudacao" type="button">Olá, <strong id="saudacao-nome"></strong> <span class="seta-menu">▾</span></button>
+        <div class="menu-flutuante-cliente">
+          <a href="perfil.html">👤 Meu perfil</a>
+          <button type="button" id="btn-logout-cliente">🚪 Sair</button>
+        </div>
+      </div>
+      <span class="status-loja"><span class="ponto"></span> Aberto agora</span>
+      <a href="../index.html" class="btn-carrinho" style="text-decoration:none;">🛒 Pedir agora</a>
+      <button class="menu-mobile-toggle" aria-label="Abrir menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<main class="pagina-interna container">
+  <div class="titulo-pagina">
+    <span class="selo">🔥 Nossa história</span>
+    <h1>Espetinho de verdade, feito por quem entende de brasa.</h1>
+    <p>O Espeto Livre nasceu da vontade simples de servir um espetinho bem feito: carne selecionada, tempero na medida certa e aquele calor de fogo de chão que só a brasa de verdade dá. Sem pressa, sem atalho — cada espeto é montado e grelhado na hora, do jeito que espetinho bom tem que ser.</p>
+  </div>
+
+  <div class="bloco-sobre">
+    <div class="placeholder-foto">🔥</div>
+    <div>
+      <h2>Do carvão à sua mesa</h2>
+      <p>Trabalhamos com uma equipe pequena — e é exatamente por isso que caprichamos em cada detalhe. Cada espeto passa pelas mesmas mãos que escolhem a carne, temperam e colocam na brasa. Não tem fórmula pronta: tem cuidado.</p>
+      <p>Criamos esta comanda digital justamente para isso: com o time enxuto, você mesmo monta o seu pedido do jeitinho que quiser, sem fila, sem espera e sem risco de esquecer nenhum detalhe. O que chega até nós é exatamente o que você escolheu.</p>
+    </div>
+  </div>
+
+  <div class="divisor-espeto"><div class="pedacos"><span></span><span></span><span></span><span></span><span></span></div></div>
+
+  <section>
+    <h2 style="font-size:1.9rem; margin-bottom:6px;">O que nos move</h2>
+    <p style="color:var(--fumaca); margin-bottom:10px;">Três coisas que não abrimos mão em nenhum espeto que sai daqui.</p>
+    <div class="grade-valores">
+      <div class="cartao-valor">
+        <div class="icone">🔥</div>
+        <h3>Na brasa, sempre</h3>
+        <p>Nada de chapa ou forno — todo espetinho é grelhado no carvão, do jeito tradicional, com aquele sabor defumado que não tem como replicar.</p>
+      </div>
+      <div class="cartao-valor">
+        <div class="icone">🥩</div>
+        <h3>Ingredientes selecionados</h3>
+        <p>Carnes de procedência, temperos preparados na casa e acompanhamentos frescos — sem economizar no que importa.</p>
+      </div>
+      <div class="cartao-valor">
+        <div class="icone">🤝</div>
+        <h3>Pedido do seu jeito</h3>
+        <p>Você escolhe a quantidade, o ponto, os detalhes. A comanda digital existe pra garantir que o seu pedido chegue exatamente como você imaginou.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-bottom:50px;">
+    <h2 style="font-size:1.9rem; margin-bottom:18px;">Horário de funcionamento</h2>
+    <table class="tabela-horarios" style="max-width:420px;"><tbody id="tabela-horarios-corpo"></tbody></table>
+    <a href="../index.html" class="btn btn-primario" style="margin-top:24px;">Ver cardápio e pedir 🍢</a>
+  </section>
+</main>
+
+<footer class="rodape">
+  <div class="container">
+    <div class="grade">
+      <div>
+        <div class="marca-rodape">
+          <img src="../assets/images/logo.png" alt="Espeto Livre">
+          <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        </div>
+        <p>Espetinhos feitos na brasa, com ingredientes selecionados e aquele tempero que só quem entende de churrasco de rua sabe fazer.</p>
+        <div class="redes">
+          <a href="#" data-cfg-href="instagram" target="_blank" aria-label="Instagram">📷</a>
+          <a href="#" data-cfg-href="whatsapp" target="_blank" aria-label="WhatsApp">💬</a>
+        </div>
+      </div>
+      <div>
+        <h4>Navegação</h4>
+        <ul>
+          <li><a href="../index.html">Cardápio</a></li>
+          <li><a href="sobre.html">Sobre nós</a></li>
+          <li><a href="contato.html">Contato</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Horário de funcionamento</h4>
+        <table class="tabela-horarios"><tbody id="tabela-horarios-corpo-rodape"></tbody></table>
+      </div>
+    </div>
+    <p class="copy">© <span id="ano-atual"></span> <span data-cfg="nomeLoja">Espeto Livre</span>. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<script src="../assets/js/scripts.js"></script>
+</body>
+</html>

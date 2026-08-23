@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espeto Livre — Peça seu espetinho</title>
+<meta name="description" content="Monte seu pedido de espetinhos na hora. Retirada no local ou entrega em Fortaleza e região.">
+<link rel="icon" href="assets/images/logo.png">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<!-- ============ PORTAL DE IDENTIFICAÇÃO (nome + WhatsApp na chegada) ============ -->
+<div class="portal-identificacao" id="portal-identificacao">
+  <div class="caixa-portal">
+    <img src="assets/images/logo.png" alt="Espeto Livre">
+    <h1>Bem-vindo(a)!</h1>
+    <p id="legenda-identificacao">Antes de montar seu pedido, precisamos do seu nome — é ele que vai ser chamado no balcão na hora da retirada ou entrega.</p>
+    <form id="form-identificacao-cliente">
+      <div class="campo" style="text-align:left;">
+        <label for="campo-id-nome">Seu nome</label>
+        <input type="text" id="campo-id-nome" placeholder="Como podemos te chamar?" required>
+      </div>
+      <div class="campo" style="text-align:left;">
+        <label for="campo-id-email">E-mail (opcional)</label>
+        <input type="email" id="campo-id-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="campo" style="text-align:left;" id="campo-wrap-telefone">
+        <label for="campo-id-telefone">WhatsApp</label>
+        <input type="tel" id="campo-id-telefone" placeholder="(85) 90000-0000" inputmode="numeric">
+      </div>
+      <div class="campo" style="text-align:left;" id="bloco-id-senha" hidden>
+        <label for="campo-id-senha">Senha de administrador</label>
+        <input type="password" id="campo-id-senha" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <p class="mensagem-erro" id="erro-identificacao"></p>
+      <button type="submit" class="btn btn-primario btn-grande" id="btn-enviar-identificacao">Começar meu pedido 🍢</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ CABEÇALHO ============ -->
+<header class="cabecalho">
+  <div class="container">
+    <a href="index.html" class="marca">
+      <img src="assets/images/logo.png" alt="Logomarca Espeto Livre">
+      <div class="texto-marca">
+        <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        <span>Na brasa, do seu jeito</span>
+      </div>
+    </a>
+
+    <nav class="nav-principal">
+      <a href="index.html" class="ativo">Cardápio</a>
+      <a href="pages/sobre.html">Sobre</a>
+      <a href="pages/contato.html">Contato</a>
+    </nav>
+
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="area-cliente" id="area-cliente" hidden>
+        <button class="saudacao-cliente" id="btn-saudacao" type="button">Olá, <strong id="saudacao-nome"></strong> <span class="seta-menu">▾</span></button>
+        <div class="menu-flutuante-cliente">
+          <a href="pages/perfil.html">👤 Meu perfil</a>
+          <button type="button" id="btn-logout-cliente">🚪 Sair</button>
+        </div>
+      </div>
+      <span class="status-loja"><span class="ponto"></span> Aberto agora</span>
+      <button class="btn-carrinho" type="button" aria-label="Abrir carrinho">
+        🛒 <span class="contagem contagem-carrinho">0</span>
+      </button>
+      <button class="menu-mobile-toggle" aria-label="Abrir menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<div id="app-comanda">
+
+  <!-- ============ HERÓI ============ -->
+  <section class="hero">
+    <div class="brilho-brasa" aria-hidden="true"></div>
+    <div class="container">
+      <span class="selo">🔥 Direto da brasa</span>
+      <h1>Monte seu pedido <em>na hora</em>, sem fila e sem espera.</h1>
+      <p class="sub">Escolha seus espetinhos, ajuste as quantidades e mande direto pra gente. Simples assim — o pedido chega prontinho no nosso WhatsApp.</p>
+      <div class="acoes">
+        <a href="#cardapio" class="btn btn-primario">Ver cardápio 👇</a>
+        <a href="#" data-cfg-href="whatsapp" target="_blank" class="btn btn-fantasma">Falar no WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NAV DE CATEGORIAS ============ -->
+  <div class="categorias-nav" id="anchor-cardapio">
+    <div class="container" id="nav-categorias"><!-- gerado via JS --></div>
+  </div>
+
+  <!-- ============ CARDÁPIO ============ -->
+  <main class="container" id="cardapio">
+    <div id="lista-cardapio"><!-- gerado via JS --></div>
+  </main>
+
+</div>
+
+<!-- ============ BOTÃO FLUTUANTE DO CARRINHO (mobile) ============ -->
+<button class="flutuante-carrinho" id="flutuante-carrinho" type="button">
+  <span class="esq"><span class="bolha" id="flutuante-qtd">0</span> Ver carrinho</span>
+  <span id="flutuante-total">R$ 0,00</span>
+</button>
+
+<!-- ============ OVERLAY (usado pelo carrinho e pelo checkout) ============ -->
+<div class="overlay" id="overlay-geral"></div>
+
+<!-- ============ PAINEL LATERAL DO CARRINHO ============ -->
+<aside class="painel-carrinho" id="painel-carrinho" aria-label="Carrinho de pedido">
+  <div class="cabecalho-painel">
+    <h2>Seu pedido</h2>
+    <button class="fechar-painel" id="fechar-carrinho" aria-label="Fechar carrinho">✕</button>
+  </div>
+  <div class="corpo-painel" id="corpo-carrinho"><!-- gerado via JS --></div>
+  <div class="rodape-painel">
+    <div class="linha-total grande"><span>Subtotal</span><span id="carrinho-subtotal">R$ 0,00</span></div>
+    <button class="btn btn-primario btn-grande" id="btn-abrir-checkout" disabled>Finalizar pedido</button>
+  </div>
+</aside>
+
+<!-- ============ MODAL DE CHECKOUT (3 ETAPAS) ============ -->
+<div class="modal-fundo" id="modal-checkout">
+  <div class="modal-caixa">
+    <button class="fechar-modal" style="position:absolute; top:20px; right:20px; background:none;border:none;color:var(--fumaca);font-size:1.3rem;">✕</button>
+
+    <div id="progresso-etapas-wrap">
+      <div class="progresso-etapas"><span class="feita"></span><span></span></div>
+    </div>
+
+    <!-- ETAPA 1: retirada/entrega + pagamento -->
+    <section class="etapa-checkout" data-etapa="1">
+      <h2>Entrega e pagamento</h2>
+      <p class="passo-legenda">Como você quer receber o pedido?</p>
+
+      <div class="opcoes-toggle">
+        <button type="button" data-tipo="retirada" class="selecionada"><span class="icone">🏠</span>Retirar no local</button>
+        <button type="button" data-tipo="delivery"><span class="icone">🛵</span>Delivery</button>
+      </div>
+
+      <div id="bloco-endereco-entrega" hidden>
+        <div class="campo">
+          <label for="select-bairro">Bairro</label>
+          <select id="select-bairro"><option value="">Selecione seu bairro...</option></select>
+        </div>
+        <div class="aviso-frete" id="aviso-frete" hidden></div>
+        <div class="campo-linha">
+          <div class="campo" style="flex:2"><label for="campo-rua">Rua</label><input type="text" id="campo-rua" placeholder="Nome da rua"></div>
+          <div class="campo" style="flex:1"><label for="campo-numero">Número</label><input type="text" id="campo-numero" placeholder="Nº"></div>
+        </div>
+        <div class="campo">
+          <label for="campo-complemento">Complemento (opcional)</label>
+          <input type="text" id="campo-complemento" placeholder="Apto, bloco, ponto de referência...">
+        </div>
+        <div class="campo">
+          <label for="campo-referencia">Ponto de referência (opcional)</label>
+          <input type="text" id="campo-referencia" placeholder="Ex: perto da praça, portão azul...">
+        </div>
+      </div>
+
+      <p class="passo-legenda" style="margin-top:6px;">Forma de pagamento</p>
+      <div class="opcoes-pagamento">
+        <label class="opcao-pagamento selecionada" data-forma="pix">
+          <input type="radio" name="pagamento" id="opcao-pix" value="pix" checked>
+          <span class="texto"><strong>Pix</strong><span>Chave enviada na confirmação</span></span>
+        </label>
+        <label class="opcao-pagamento" data-forma="dinheiro">
+          <input type="radio" name="pagamento" id="opcao-dinheiro" value="dinheiro">
+          <span class="texto"><strong>Dinheiro</strong><span>Pagamento na entrega/retirada</span></span>
+        </label>
+        <label class="opcao-pagamento" data-forma="credito">
+          <input type="radio" name="pagamento" id="opcao-credito" value="credito">
+          <span class="texto"><strong>Cartão de Crédito</strong><span>Maquininha na entrega/retirada</span></span>
+        </label>
+        <label class="opcao-pagamento" data-forma="debito">
+          <input type="radio" name="pagamento" id="opcao-debito" value="debito">
+          <span class="texto"><strong>Cartão de Débito</strong><span>Maquininha na entrega/retirada</span></span>
+        </label>
+      </div>
+      <div class="campo" id="campo-troco" hidden>
+        <label for="campo-troco-valor">Troco para quanto?</label>
+        <input type="text" id="campo-troco-valor" placeholder="Ex: 50">
+      </div>
+
+      <p class="mensagem-erro" id="erro-entrega"></p>
+      <div class="botoes-etapa">
+        <button class="btn btn-primario" id="btn-entrega-continuar" style="width:100%;">Continuar</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 2: revisão final -->
+    <section class="etapa-checkout" data-etapa="2" hidden>
+      <h2>Confirme seu pedido</h2>
+      <p class="passo-legenda">Última checada antes de enviar</p>
+      <div class="campo">
+        <label for="campo-obs-gerais">Observações gerais (opcional)</label>
+        <textarea id="campo-obs-gerais" rows="3" placeholder="Ex: campainha não funciona, favor ligar ao chegar..."></textarea>
+      </div>
+      <div class="resumo-pedido" id="resumo-pedido-final"><!-- gerado via JS --></div>
+      <div class="botoes-etapa">
+        <button class="btn btn-fantasma" id="btn-revisao-voltar">Voltar</button>
+        <button class="btn btn-primario" id="btn-enviar-pedido">Enviar pedido no WhatsApp 🚀</button>
+      </div>
+    </section>
+
+    <!-- CONFIRMAÇÃO -->
+    <section class="tela-confirmacao" id="etapa-confirmacao" hidden>
+      <div class="icone-check">✓</div>
+      <h2>Pedido #<span id="numero-pedido-confirmacao"></span> enviado!</h2>
+      <p>Se o WhatsApp não abriu automaticamente, toque no botão abaixo para confirmar com a gente.</p>
+      <a href="#" id="link-whatsapp-pedido" target="_blank" class="btn btn-primario btn-grande" style="margin-bottom:10px;">Abrir WhatsApp</a>
+      <button class="btn btn-fantasma btn-grande" id="btn-novo-pedido">Fazer novo pedido</button>
+    </section>
+  </div>
+</div>
+
+<!-- ============ RODAPÉ ============ -->
+<footer class="rodape">
+  <div class="container">
+    <div class="grade">
+      <div>
+        <div class="marca-rodape">
+          <img src="assets/images/logo.png" alt="Espeto Livre">
+          <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        </div>
+        <p>Espetinhos feitos na brasa, com ingredientes selecionados e aquele tempero que só quem entende de churrasco de rua sabe fazer.</p>
+        <div class="redes">
+          <a href="#" data-cfg-href="instagram" target="_blank" aria-label="Instagram">📷</a>
+          <a href="#" data-cfg-href="whatsapp" target="_blank" aria-label="WhatsApp">💬</a>
+        </div>
+      </div>
+      <div>
+        <h4>Navegação</h4>
+        <ul>
+          <li><a href="index.html">Cardápio</a></li>
+          <li><a href="pages/sobre.html">Sobre nós</a></li>
+          <li><a href="pages/contato.html">Contato</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Horário de funcionamento</h4>
+        <table class="tabela-horarios"><tbody id="tabela-horarios-corpo"></tbody></table>
+      </div>
+    </div>
+    <p class="copy">© <span id="ano-atual"></span> <span data-cfg="nomeLoja">Espeto Livre</span>. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<script src="assets/js/scripts.js"></script>
+</body>
+</html>

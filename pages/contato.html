@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contato — Espeto Livre</title>
+<meta name="description" content="Fale com o Espeto Livre pelo WhatsApp, veja nosso endereço e horário de funcionamento.">
+<link rel="icon" href="../assets/images/logo.png">
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="cabecalho">
+  <div class="container">
+    <a href="../index.html" class="marca">
+      <img src="../assets/images/logo.png" alt="Logomarca Espeto Livre">
+      <div class="texto-marca">
+        <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        <span>Na brasa, do seu jeito</span>
+      </div>
+    </a>
+    <nav class="nav-principal">
+      <a href="../index.html">Cardápio</a>
+      <a href="sobre.html">Sobre</a>
+      <a href="contato.html" class="ativo">Contato</a>
+    </nav>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="area-cliente" id="area-cliente" hidden>
+        <button class="saudacao-cliente" id="btn-saudacao" type="button">Olá, <strong id="saudacao-nome"></strong> <span class="seta-menu">▾</span></button>
+        <div class="menu-flutuante-cliente">
+          <a href="perfil.html">👤 Meu perfil</a>
+          <button type="button" id="btn-logout-cliente">🚪 Sair</button>
+        </div>
+      </div>
+      <span class="status-loja"><span class="ponto"></span> Aberto agora</span>
+      <a href="../index.html" class="btn-carrinho" style="text-decoration:none;">🛒 Pedir agora</a>
+      <button class="menu-mobile-toggle" aria-label="Abrir menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<main class="pagina-interna container">
+  <div class="titulo-pagina">
+    <span class="selo">📍 Fale com a gente</span>
+    <h1>Alguma dúvida, sugestão ou pedido especial?</h1>
+    <p>Chama no WhatsApp que a gente responde rapidinho — é o mesmo canal que recebe os pedidos feitos pela comanda digital.</p>
+  </div>
+
+  <div class="grade-contato">
+    <div>
+      <ul class="lista-info-contato">
+        <li>
+          <span class="icone">💬</span>
+          <div>
+            <strong>WhatsApp</strong>
+            <a href="#" data-cfg-href="whatsapp" target="_blank">Chamar no WhatsApp</a>
+          </div>
+        </li>
+        <li>
+          <span class="icone">📷</span>
+          <div>
+            <strong>Instagram</strong>
+            <a href="#" data-cfg-href="instagram" target="_blank">@espetolivre</a>
+          </div>
+        </li>
+        <li>
+          <span class="icone">📍</span>
+          <div>
+            <strong>Endereço</strong>
+            <span data-cfg="enderecoTexto">Fortaleza - CE</span><br>
+            <a href="#" data-cfg-href="mapa" target="_blank">Ver rota no Google Maps</a>
+          </div>
+        </li>
+        <li>
+          <span class="icone">🕒</span>
+          <div>
+            <strong>Horário de funcionamento</strong>
+            <table class="tabela-horarios" style="margin-top:6px;"><tbody id="tabela-horarios-corpo"></tbody></table>
+          </div>
+        </li>
+      </ul>
+
+      <a href="../index.html" class="btn btn-primario" style="margin-top:10px;">Ver cardápio e pedir 🍢</a>
+    </div>
+
+    <div>
+      <div class="mapa-embed">
+        <iframe id="iframe-mapa" src="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa de localização do Espeto Livre"></iframe>
+      </div>
+      <div class="acoes-mapa-abaixo">
+        <a href="#" data-cfg-href="mapa" target="_blank" class="btn btn-primario">📍 Abrir no Google Maps</a>
+        <button type="button" id="btn-copiar-endereco" class="btn btn-fantasma">📋 Copiar endereço</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="rodape">
+  <div class="container">
+    <div class="grade">
+      <div>
+        <div class="marca-rodape">
+          <img src="../assets/images/logo.png" alt="Espeto Livre">
+          <strong data-cfg="nomeLoja">Espeto Livre</strong>
+        </div>
+        <p>Espetinhos feitos na brasa, com ingredientes selecionados e aquele tempero que só quem entende de churrasco de rua sabe fazer.</p>
+        <div class="redes">
+          <a href="#" data-cfg-href="instagram" target="_blank" aria-label="Instagram">📷</a>
+          <a href="#" data-cfg-href="whatsapp" target="_blank" aria-label="WhatsApp">💬</a>
+        </div>
+      </div>
+      <div>
+        <h4>Navegação</h4>
+        <ul>
+          <li><a href="../index.html">Cardápio</a></li>
+          <li><a href="sobre.html">Sobre nós</a></li>
+          <li><a href="contato.html">Contato</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Horário de funcionamento</h4>
+        <table class="tabela-horarios"><tbody id="tabela-horarios-corpo-rodape"></tbody></table>
+      </div>
+    </div>
+    <p class="copy">© <span id="ano-atual"></span> <span data-cfg="nomeLoja">Espeto Livre</span>. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<script src="../assets/js/scripts.js"></script>
+</body>
+</html>

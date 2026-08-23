@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Espeto Livre</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../assets/images/logo.png">
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<!-- ============ TELA DE LOGIN ============ -->
+<div class="tela-login-admin">
+  <div class="caixa-login">
+    <img src="../assets/images/logo.png" alt="Espeto Livre">
+    <h1>Área administrativa</h1>
+    <p>Digite a senha para gerenciar cardápio, pedidos e entregas.</p>
+    <form id="form-login-admin">
+      <div class="campo" style="text-align:left;">
+        <label for="campo-email-admin">E-mail</label>
+        <input type="email" id="campo-email-admin" placeholder="brunokawamurapessoal@gmail.com" required>
+      </div>
+      <div class="campo" style="text-align:left;">
+        <label for="campo-senha-admin">Senha</label>
+        <input type="password" id="campo-senha-admin" placeholder="••••••••" required>
+      </div>
+      <p class="mensagem-erro" id="erro-login-admin">E-mail ou senha incorretos. Tente novamente.</p>
+      <button type="submit" class="btn btn-primario btn-grande">Entrar</button>
+    </form>
+    <p style="color:var(--fumaca-escura); font-size:.76rem; margin-top:18px;">
+      Acesso padrão inicial: <strong>brunokawamurapessoal@gmail.com</strong> / senha <strong>espeto123</strong> — troque a senha em Configurações assim que entrar.
+    </p>
+    <a href="../index.html" style="display:inline-block; margin-top:14px; font-size:.82rem; color:var(--fumaca);">← Voltar para o cardápio</a>
+  </div>
+</div>
+
+<!-- ============ APP ADMIN ============ -->
+<div class="app-admin" id="app-admin">
+  <aside class="lateral-admin">
+    <div class="marca">
+      <div class="marca-rodape" style="margin-bottom:0;">
+        <img src="../assets/images/logo.png" alt="Espeto Livre">
+        <strong data-cfg="nomeLoja" style="font-size:1.1rem;">Espeto Livre</strong>
+      </div>
+    </div>
+    <nav>
+      <button data-aba="painel" class="ativa">📊 Painel</button>
+      <button data-aba="cardapio">🍢 Cardápio</button>
+      <button data-aba="pedidos">📋 Pedidos</button>
+      <button data-aba="entrega">🛵 Entrega</button>
+      <button data-aba="configuracoes">⚙️ Configurações</button>
+    </nav>
+    <a href="../index.html" style="font-size:.82rem; color:var(--fumaca); margin-bottom:10px; display:block;">← Ver site</a>
+    <button class="sair-admin" id="btn-sair-admin">Sair</button>
+  </aside>
+
+  <div class="conteudo-admin">
+
+    <!-- ---- PAINEL ---- -->
+    <section class="secao-admin" data-secao="painel">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Painel</h1>
+          <p>Um resumo rápido de como está o dia.</p>
+        </div>
+      </div>
+
+      <div class="grade-metricas">
+        <div class="cartao-metrica"><div class="valor" id="metrica-pedidos-hoje">0</div><div class="rotulo">Pedidos hoje</div></div>
+        <div class="cartao-metrica"><div class="valor" id="metrica-faturamento-hoje">R$ 0,00</div><div class="rotulo">Faturamento hoje</div></div>
+        <div class="cartao-metrica"><div class="valor" id="metrica-pedidos-novos">0</div><div class="rotulo">Pedidos aguardando</div></div>
+        <div class="cartao-metrica"><div class="valor" id="metrica-produtos-ativos">0 / 0</div><div class="rotulo">Produtos disponíveis</div></div>
+      </div>
+
+      <h3 style="font-family:var(--fonte-corpo); font-size:1.05rem; margin-bottom:12px;">Pedidos recentes</h3>
+      <table class="tabela-admin">
+        <thead><tr><th>Pedido</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody id="lista-pedidos-recentes"></tbody>
+      </table>
+    </section>
+
+    <!-- ---- CARDÁPIO ---- -->
+    <section class="secao-admin" data-secao="cardapio">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Cardápio</h1>
+          <p>Adicione, edite ou remova produtos. Mudanças aparecem no site deste aparelho na hora.</p>
+        </div>
+        <button class="btn btn-primario" id="btn-novo-produto">+ Novo produto</button>
+      </div>
+
+      <div class="painel-formulario" id="painel-form-produto" hidden>
+        <h3 id="titulo-form-produto">Novo produto</h3>
+        <form id="form-produto">
+          <div class="grade-formulario">
+            <div class="campo largo">
+              <label for="campo-produto-nome">Nome do produto</label>
+              <input type="text" id="campo-produto-nome" required placeholder="Ex: Espeto de Picanha">
+            </div>
+            <div class="campo">
+              <label for="campo-produto-categoria">Categoria</label>
+              <input type="text" id="campo-produto-categoria" list="lista-categorias-existentes" required placeholder="Ex: Espetos de Carne">
+              <datalist id="lista-categorias-existentes"></datalist>
+            </div>
+            <div class="campo">
+              <label for="campo-produto-preco">Preço (R$)</label>
+              <input type="number" id="campo-produto-preco" step="0.01" min="0" required placeholder="0,00">
+            </div>
+            <div class="campo largo">
+              <label for="campo-produto-foto">Foto do produto (opcional)</label>
+              <input type="file" id="campo-produto-foto" accept="image/*">
+              <p class="ajuda" style="margin:6px 0 0;">A imagem é redimensionada e comprimida automaticamente. Se não enviar foto, o ícone (emoji) abaixo é usado no lugar.</p>
+              <div class="preview-foto-produto" id="preview-foto-produto" hidden>
+                <img id="preview-foto-produto-img" src="" alt="Pré-visualização da foto">
+                <button type="button" id="btn-remover-foto-produto">✕ Remover foto</button>
+              </div>
+            </div>
+            <div class="campo">
+              <label for="campo-produto-emoji">Ícone (emoji, usado se não houver foto)</label>
+              <input type="text" id="campo-produto-emoji" placeholder="🍢" maxlength="4">
+            </div>
+            <div class="campo">
+              <label class="chave-valor" style="margin-top:10px;">
+                <input type="checkbox" id="campo-produto-disponivel" checked>
+                <span class="interruptor"></span>
+                Disponível no cardápio
+              </label>
+            </div>
+            <div class="campo largo">
+              <label for="campo-produto-descricao">Descrição / ingredientes</label>
+              <textarea id="campo-produto-descricao" rows="2" placeholder="Ex: Cubos de picanha temperados, grelhados na brasa"></textarea>
+            </div>
+          </div>
+          <div class="botoes-etapa" style="max-width:340px;">
+            <button type="button" class="btn btn-fantasma" id="btn-cancelar-produto">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Salvar produto</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="barra-ferramentas">
+        <div class="busca"><input type="text" id="busca-produto" placeholder="Buscar produto ou categoria..."></div>
+      </div>
+
+      <table class="tabela-admin">
+        <thead><tr><th></th><th>Produto</th><th>Categoria</th><th>Preço</th><th>Disponível</th><th>Ações</th></tr></thead>
+        <tbody id="tabela-produtos-corpo"></tbody>
+      </table>
+    </section>
+
+    <!-- ---- PEDIDOS ---- -->
+    <section class="secao-admin" data-secao="pedidos">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Pedidos</h1>
+          <p>Histórico de pedidos feitos pela comanda digital neste aparelho.</p>
+        </div>
+      </div>
+
+      <div class="barra-ferramentas">
+        <div class="filtros-chip">
+          <button data-status="todos" class="ativa">Todos</button>
+          <button data-status="novo">Novo</button>
+          <button data-status="preparando">Preparando</button>
+          <button data-status="pronto">Pronto</button>
+          <button data-status="entregue">Entregue</button>
+          <button data-status="cancelado">Cancelado</button>
+        </div>
+      </div>
+
+      <table class="tabela-admin">
+        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tabela-pedidos-corpo"></tbody>
+      </table>
+    </section>
+
+    <!-- ---- ENTREGA ---- -->
+    <section class="secao-admin" data-secao="entrega">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Entrega</h1>
+          <p>Configure os parâmetros de frete e os bairros atendidos.</p>
+        </div>
+      </div>
+
+      <div class="cartao-config">
+        <h3>Parâmetros de cálculo do frete</h3>
+        <p class="ajuda">Frete = taxa base + (distância × 2 × preço da gasolina ÷ consumo por litro). Atualize o preço da gasolina sempre que ele mudar.</p>
+        <form id="form-parametros-frete">
+          <div class="grade-formulario">
+            <div class="campo">
+              <label for="campo-preco-gasolina">Preço da gasolina (R$/litro)</label>
+              <input type="number" id="campo-preco-gasolina" step="0.01" min="0" required>
+            </div>
+            <div class="campo">
+              <label for="campo-consumo-km">Consumo da moto (km/litro)</label>
+              <input type="number" id="campo-consumo-km" step="0.1" min="1" required>
+            </div>
+            <div class="campo">
+              <label for="campo-taxa-base">Taxa base de entrega (R$)</label>
+              <input type="number" id="campo-taxa-base" step="0.5" min="0" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primario">Salvar parâmetros</button>
+        </form>
+      </div>
+
+      <div class="cabecalho-admin" style="margin-top:10px;">
+        <div>
+          <h3 style="font-family:var(--fonte-corpo); font-size:1.1rem;">Bairros atendidos</h3>
+          <p class="ajuda" style="margin-bottom:0;">A distância em km define o valor do frete calculado automaticamente na comanda.</p>
+        </div>
+        <button class="btn btn-primario" id="btn-novo-bairro">+ Novo bairro</button>
+      </div>
+
+      <div class="painel-formulario" id="painel-form-bairro" hidden>
+        <h3>Bairro</h3>
+        <form id="form-bairro">
+          <div class="grade-formulario">
+            <div class="campo">
+              <label for="campo-bairro-nome">Nome do bairro</label>
+              <input type="text" id="campo-bairro-nome" required placeholder="Ex: Aldeota">
+            </div>
+            <div class="campo">
+              <label for="campo-bairro-distancia">Distância até a loja (km)</label>
+              <input type="number" id="campo-bairro-distancia" step="0.1" min="0.1" required>
+            </div>
+          </div>
+          <div class="botoes-etapa" style="max-width:340px;">
+            <button type="button" class="btn btn-fantasma" id="btn-cancelar-bairro">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Salvar bairro</button>
+          </div>
+        </form>
+      </div>
+
+      <table class="tabela-admin">
+        <thead><tr><th>Bairro</th><th>Distância</th><th>Frete calculado</th><th>Ações</th></tr></thead>
+        <tbody id="tabela-bairros-corpo"></tbody>
+      </table>
+    </section>
+
+    <!-- ---- CONFIGURAÇÕES ---- -->
+    <section class="secao-admin" data-secao="configuracoes">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Configurações</h1>
+          <p>Dados do estabelecimento, segurança e backup dos dados.</p>
+        </div>
+      </div>
+
+      <div class="cartao-config">
+        <h3>Dados da loja</h3>
+        <p class="ajuda">Essas informações aparecem no site (cabeçalho, rodapé, página de contato).</p>
+        <form id="form-config-loja">
+          <div class="grade-formulario">
+            <div class="campo"><label for="cfg-nome-loja">Nome da loja</label><input type="text" id="cfg-nome-loja" required></div>
+            <div class="campo"><label for="cfg-tagline">Frase de efeito</label><input type="text" id="cfg-tagline"></div>
+            <div class="campo"><label for="cfg-whatsapp">WhatsApp (DDI+DDD+número, só números)</label><input type="text" id="cfg-whatsapp" placeholder="5585990000000" required></div>
+            <div class="campo"><label for="cfg-instagram">Link do Instagram</label><input type="url" id="cfg-instagram" placeholder="https://instagram.com/seuusuario"></div>
+            <div class="campo"><label for="cfg-facebook">Link do Facebook (opcional)</label><input type="url" id="cfg-facebook" placeholder="https://facebook.com/suapagina"></div>
+            <div class="campo"><label for="cfg-endereco-texto">Endereço (texto exibido)</label><input type="text" id="cfg-endereco-texto" placeholder="Rua Exemplo, 123 - Bairro, Fortaleza - CE"></div>
+            <div class="campo largo"><label for="cfg-endereco-mapa">Endereço para busca no mapa</label><input type="text" id="cfg-endereco-mapa" placeholder="Mesmo endereço, usado para gerar o link do Google Maps"></div>
+            <div class="campo">
+              <label for="cfg-endereco-lat">Latitude (posição do mapa)</label>
+              <input type="number" id="cfg-endereco-lat" step="0.0000001" placeholder="-3.7450151">
+            </div>
+            <div class="campo">
+              <label for="cfg-endereco-lng">Longitude (posição do mapa)</label>
+              <input type="number" id="cfg-endereco-lng" step="0.0000001" placeholder="-38.4766572">
+            </div>
+            <div class="campo largo">
+              <p class="ajuda">
+                Pra achar a latitude/longitude certas: abra o endereço no Google Maps, clique com o botão direito
+                bem em cima do local exato → os números que aparecem no topo do menu são a latitude e a longitude
+                (nessa ordem) — é só copiar e colar aqui.
+              </p>
+            </div>
+          </div>
+
+          <p class="ajuda" style="margin-top:16px;">Horário de funcionamento (define o aviso "Aberto agora"/"Fechado agora" no site)</p>
+          <div id="wrap-horarios-config"></div>
+          <br>
+          <button type="submit" class="btn btn-primario">Salvar dados da loja</button>
+        </form>
+      </div>
+
+      <div class="cartao-config">
+        <h3>Segurança</h3>
+        <p class="ajuda">Altere o e-mail e/ou a senha usados para entrar no painel (pela tela de identificação do site ou por aqui).</p>
+        <form id="form-config-senha">
+          <div class="grade-formulario">
+            <div class="campo largo"><label for="cfg-senha-atual">Senha atual (obrigatória para confirmar)</label><input type="password" id="cfg-senha-atual" required></div>
+            <div class="campo"><label for="cfg-email-admin-novo">E-mail de administrador</label><input type="email" id="cfg-email-admin-novo" required></div>
+            <div class="campo"><label for="cfg-senha-nova">Nova senha (deixe em branco para manter a atual)</label><input type="password" id="cfg-senha-nova" placeholder="••••••••"></div>
+          </div>
+          <button type="submit" class="btn btn-primario">Salvar alterações de segurança</button>
+        </form>
+      </div>
+
+      <div class="cartao-config">
+        <h3>Backup dos dados</h3>
+        <p class="ajuda">
+          Como este site não usa um servidor central, os dados ficam salvos apenas neste navegador.
+          Exporte um backup regularmente e, se precisar usar outro aparelho, importe o mesmo arquivo lá.
+        </p>
+        <div class="acoes-backup">
+          <button class="btn btn-primario" id="btn-exportar-dados">⬇️ Exportar backup (.json)</button>
+          <label class="btn btn-fantasma" style="cursor:pointer;">
+            ⬆️ Importar backup
+            <input type="file" id="input-importar-dados" accept="application/json" style="display:none;">
+          </label>
+        </div>
+      </div>
+
+      <div class="cartao-config">
+        <h3>Restaurar de fábrica</h3>
+        <p class="ajuda">
+          Apaga cardápio, bairros, pedidos, clientes e configurações salvos <strong>neste navegador</strong> e recarrega
+          os valores originais do site (endereço, horários, cardápio padrão etc.). Use isso se o site parecer
+          "travado" numa versão antiga depois de uma atualização de arquivos. Essa ação não pode ser desfeita —
+          exporte um backup antes, se quiser guardar os dados atuais.
+        </p>
+        <button class="btn btn-fantasma" id="btn-restaurar-fabrica" style="border-color:var(--brasa); color:var(--brasa);">🗑️ Restaurar tudo de fábrica</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="../assets/js/scripts.js"></script>
+</body>
+</html>
