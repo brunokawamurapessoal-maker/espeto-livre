@@ -37,7 +37,7 @@
     // cliente atualizar esses campos automaticamente, sem precisar restaurar
     // tudo manualmente. Detalhes puramente administrativos (senha, cardápio
     // editado à mão etc.) não são afetados por essa versão.
-    versaoConfig: 3,
+    versaoConfig: 4,
     nomeLoja: 'Espeto Livre',
     tagline: 'Espetinho na brasa, do seu jeito',
     whatsapp: '5585991241960',            // WhatsApp real do Espeto Livre
@@ -45,8 +45,11 @@
     facebook: '',
     enderecoTexto: 'Rua Dr. Zamenhof, 320 - Cocó, Fortaleza - CE, 60192-280',
     enderecoMapaBusca: 'Rua Dr. Zamenhof, 320 - Cocó, Fortaleza - CE, 60192-280', // usado no link do Google Maps
-    enderecoLat: -3.7450151,   // coordenadas usadas para montar o mapa (OpenStreetMap)
-    enderecoLng: -38.4766572,  // ajuste se o pino não cair exatamente no endereço certo
+    enderecoLat: -3.7445113,   // coordenadas verificadas do local real no Google Maps
+    enderecoLng: -38.4765676,  // ajuste se o pino não cair exatamente no endereço certo
+    // link direto pro local verificado no Google Maps (mostra o nome "Espeto Livre" no pino,
+    // em vez de só uma coordenada solta). Deixe em branco para usar coordenadas/endereço em texto.
+    enderecoUrlGoogleMaps: 'https://www.google.com/maps/place/Espeto+Livre/@-3.7445113,-38.4765676,869m/data=!3m2!1e3!4b1!4m6!3m5!1s0x7c7470068e64bab:0x76af607d565973e6!8m2!3d-3.7445113!4d-38.4765676!16s%2Fg%2F11zgs2y1bw',
     // Horário estruturado por dia da semana (0=domingo ... 6=sábado). É a partir
     // disso que o site calcula sozinho se mostra "Aberto agora" ou "Fechado agora".
     // "fechamento" menor ou igual à "abertura" é interpretado como virada de noite
@@ -276,6 +279,10 @@
         Object.keys(PADROES_ANTIGOS).forEach(campo => {
           if (atual[campo] === PADROES_ANTIGOS[campo]) atual[campo] = CONFIG_PADRAO[campo];
         });
+        // coordenadas antigas (estimadas por CEP) trocadas pelas coordenadas
+        // reais e verificadas do local no Google Maps
+        if (atual.enderecoLat === -3.7450151) atual.enderecoLat = CONFIG_PADRAO.enderecoLat;
+        if (atual.enderecoLng === -38.4766572) atual.enderecoLng = CONFIG_PADRAO.enderecoLng;
         if (typeof atual.enderecoLat !== 'number') atual.enderecoLat = CONFIG_PADRAO.enderecoLat;
         if (typeof atual.enderecoLng !== 'number') atual.enderecoLng = CONFIG_PADRAO.enderecoLng;
         atual.versaoConfig = CONFIG_PADRAO.versaoConfig;
@@ -380,9 +387,10 @@
     $$('[data-cfg-href="instagram"]').forEach(el => { if (cfg.instagram) el.href = cfg.instagram; });
     $$('[data-cfg-href="facebook"]').forEach(el => { if (cfg.facebook) el.href = cfg.facebook; else el.style.display = 'none'; });
     $$('[data-cfg-href="mapa"]').forEach(el => {
-      el.href = (typeof cfg.enderecoLat === 'number' && typeof cfg.enderecoLng === 'number')
-        ? `https://www.google.com/maps/search/?api=1&query=${cfg.enderecoLat},${cfg.enderecoLng}`
-        : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(cfg.enderecoMapaBusca || cfg.enderecoTexto);
+      el.href = cfg.enderecoUrlGoogleMaps
+        || (typeof cfg.enderecoLat === 'number' && typeof cfg.enderecoLng === 'number'
+          ? `https://www.google.com/maps/search/?api=1&query=${cfg.enderecoLat},${cfg.enderecoLng}`
+          : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(cfg.enderecoMapaBusca || cfg.enderecoTexto));
     });
 
     const corposHorarios = $$('#tabela-horarios-corpo, #tabela-horarios-corpo-rodape');
@@ -1659,6 +1667,7 @@
       $('#cfg-facebook').value = cfg.facebook;
       $('#cfg-endereco-texto').value = cfg.enderecoTexto;
       $('#cfg-endereco-mapa').value = cfg.enderecoMapaBusca;
+      $('#cfg-endereco-url-maps').value = cfg.enderecoUrlGoogleMaps || '';
       $('#cfg-endereco-lat').value = typeof cfg.enderecoLat === 'number' ? cfg.enderecoLat : '';
       $('#cfg-endereco-lng').value = typeof cfg.enderecoLng === 'number' ? cfg.enderecoLng : '';
 
@@ -1700,6 +1709,7 @@
         novoCfg.facebook = $('#cfg-facebook').value.trim();
         novoCfg.enderecoTexto = $('#cfg-endereco-texto').value.trim();
         novoCfg.enderecoMapaBusca = $('#cfg-endereco-mapa').value.trim();
+        novoCfg.enderecoUrlGoogleMaps = $('#cfg-endereco-url-maps').value.trim();
         const latDigitada = parseFloat($('#cfg-endereco-lat').value);
         const lngDigitada = parseFloat($('#cfg-endereco-lng').value);
         novoCfg.enderecoLat = isNaN(latDigitada) ? null : latDigitada;

@@ -261,13 +261,24 @@
             <div class="campo"><label for="cfg-facebook">Link do Facebook (opcional)</label><input type="url" id="cfg-facebook" placeholder="https://facebook.com/suapagina"></div>
             <div class="campo"><label for="cfg-endereco-texto">Endereço (texto exibido)</label><input type="text" id="cfg-endereco-texto" placeholder="Rua Exemplo, 123 - Bairro, Fortaleza - CE"></div>
             <div class="campo largo"><label for="cfg-endereco-mapa">Endereço para busca no mapa</label><input type="text" id="cfg-endereco-mapa" placeholder="Mesmo endereço, usado para gerar o link do Google Maps"></div>
+            <div class="campo largo">
+              <label for="cfg-endereco-url-maps">Link direto do local no Google Maps (opcional, mas recomendado)</label>
+              <input type="url" id="cfg-endereco-url-maps" placeholder="https://www.google.com/maps/place/...">
+            </div>
+            <div class="campo largo">
+              <p class="ajuda">
+                Pra achar esse link: procure sua loja pelo nome no Google Maps, clique em "Compartilhar" no local
+                verificado e copie o link. Isso mostra o nome da loja no pino (não só uma coordenada solta). Se
+                deixar em branco, o site usa a latitude/longitude abaixo.
+              </p>
+            </div>
             <div class="campo">
               <label for="cfg-endereco-lat">Latitude (posição do mapa)</label>
-              <input type="number" id="cfg-endereco-lat" step="0.0000001" placeholder="-3.7450151">
+              <input type="number" id="cfg-endereco-lat" step="0.0000001" placeholder="-3.7445113">
             </div>
             <div class="campo">
               <label for="cfg-endereco-lng">Longitude (posição do mapa)</label>
-              <input type="number" id="cfg-endereco-lng" step="0.0000001" placeholder="-38.4766572">
+              <input type="number" id="cfg-endereco-lng" step="0.0000001" placeholder="-38.4765676">
             </div>
             <div class="campo largo">
               <p class="ajuda">
