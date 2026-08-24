@@ -218,6 +218,37 @@
   </div>
 </div>
 
+<!-- ============ MODAL DE PRODUTO ============ -->
+<div class="modal-fundo" id="modal-produto">
+  <div class="modal-caixa modal-produto-caixa">
+    <button id="btn-fechar-modal-produto" aria-label="Fechar" style="position:absolute; top:16px; right:16px; z-index:2; background:rgba(18,14,12,.55); border:none; color:var(--creme); font-size:1.2rem; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;">✕</button>
+    <div class="produto-modal-foto" id="produto-modal-foto"></div>
+    <div class="produto-modal-corpo">
+      <h2 id="produto-modal-nome"></h2>
+      <p class="produto-modal-descricao" id="produto-modal-descricao"></p>
+      <div class="produto-modal-preco" id="produto-modal-preco"></div>
+
+      <div class="campo">
+        <label>Quantidade</label>
+        <div class="stepper stepper-grande">
+          <button type="button" id="modal-qtd-menos" aria-label="Diminuir quantidade">−</button>
+          <span class="qtd" id="modal-qtd-valor">1</span>
+          <button type="button" id="modal-qtd-mais" aria-label="Aumentar quantidade">+</button>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label for="modal-produto-obs">Observações (opcional)</label>
+        <textarea id="modal-produto-obs" rows="3" placeholder="Ex: sem cebola, ponto da carne, sem pimenta..." maxlength="140"></textarea>
+      </div>
+
+      <button class="btn btn-primario btn-grande" id="btn-adicionar-modal-produto">
+        Adicionar ao pedido — <span id="modal-produto-subtotal">R$ 0,00</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ RODAPÉ ============ -->
 <footer class="rodape">
   <div class="container">

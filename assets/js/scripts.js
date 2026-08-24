@@ -575,6 +575,7 @@
       this.atualizarCarrinhoUI();
       this.ligarEventosGerais();
       this.ligarEventosCheckout();
+      this.ligarEventosModalProduto();
     },
 
     carregarCarrinhoSalvo(){
@@ -741,25 +742,17 @@
         ? `<img src="${p.foto}" alt="${escapar(p.nome)}">`
         : (p.emoji || '🍢');
       return `
-        <article class="item-card" data-produto-id="${p.id}">
-          <div class="emoji">${visualItem}</div>
+        <article class="item-card" data-produto-id="${p.id}" role="button" tabindex="0" aria-label="Ver detalhes de ${escapar(p.nome)}">
+          <div class="emoji">
+            ${visualItem}
+            ${qtdAtual > 0 ? `<span class="badge-qtd-carrinho">${qtdAtual}</span>` : ''}
+          </div>
           <div class="info">
             <div class="linha-topo">
               <h3>${escapar(p.nome)}</h3>
               <span class="preco">${formatarMoeda(p.preco)}</span>
             </div>
             <p class="descricao">${escapar(p.descricao || '')}</p>
-            <div class="linha-controles">
-              <div class="stepper" data-produto-id="${p.id}">
-                <button class="btn-menos" type="button" aria-label="Diminuir quantidade" ${qtdAtual<=0?'disabled':''}>−</button>
-                <span class="qtd">${qtdAtual}</span>
-                <button class="btn-mais" type="button" aria-label="Aumentar quantidade">+</button>
-              </div>
-              <button class="btn-obs" type="button">📝 observação</button>
-            </div>
-            <div class="campo-obs-item" hidden>
-              <textarea placeholder="Ex: sem cebola, ponto da carne, sem pimenta..." maxlength="140"></textarea>
-            </div>
           </div>
         </article>`;
     },
@@ -770,56 +763,78 @@
 
     ligarEventosItem(card){
       const produtoId = card.dataset.produtoId;
-      const produto = this.produtos.find(p => p.id === produtoId);
-      const btnMais = $('.btn-mais', card);
-      const btnMenos = $('.btn-menos', card);
-      const qtdSpan = $('.qtd', card);
-      const btnObs = $('.btn-obs', card);
-      const campoObs = $('.campo-obs-item', card);
-      const textarea = $('textarea', campoObs);
-
-      btnObs.addEventListener('click', () => {
-        campoObs.hidden = !campoObs.hidden;
-        if (!campoObs.hidden) textarea.focus();
-      });
-
-      btnMais.addEventListener('click', () => {
-        this.adicionarAoCarrinho(produto, textarea.value.trim());
-        qtdSpan.textContent = this.qtdNoCarrinhoSemObs(produtoId);
-        btnMenos.disabled = false;
-        this.atualizarCarrinhoUI();
-      });
-
-      btnMenos.addEventListener('click', () => {
-        this.removerUmDoCarrinho(produtoId, textarea.value.trim());
-        const nova = this.qtdNoCarrinhoSemObs(produtoId);
-        qtdSpan.textContent = nova;
-        btnMenos.disabled = nova <= 0;
-        this.atualizarCarrinhoUI();
+      const abrir = () => this.abrirModalProduto(produtoId);
+      card.addEventListener('click', abrir);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrir(); }
       });
     },
 
-    adicionarAoCarrinho(produto, obs){
+    /* ---- Modal de produto: abre ao clicar em qualquer item do cardápio ---- */
+    abrirModalProduto(produtoId){
+      const produto = this.produtos.find(p => p.id === produtoId);
+      if (!produto) return;
+      this.produtoModalAtual = produto;
+      this.qtdModalAtual = 1;
+
+      $('#produto-modal-foto').innerHTML = produto.foto
+        ? `<img src="${produto.foto}" alt="${escapar(produto.nome)}">`
+        : `<span class="emoji-grande">${produto.emoji || '🍢'}</span>`;
+      $('#produto-modal-nome').textContent = produto.nome;
+      $('#produto-modal-descricao').textContent = produto.descricao || '';
+      $('#produto-modal-preco').textContent = formatarMoeda(produto.preco);
+      $('#modal-produto-obs').value = '';
+      $('#modal-qtd-valor').textContent = this.qtdModalAtual;
+      this.atualizarSubtotalModalProduto();
+
+      $('#modal-produto')?.classList.add('aberto');
+      $('#overlay-geral')?.classList.add('aberto');
+    },
+
+    fecharModalProduto(){
+      $('#modal-produto')?.classList.remove('aberto');
+      $('#overlay-geral')?.classList.remove('aberto');
+      this.produtoModalAtual = null;
+    },
+
+    atualizarSubtotalModalProduto(){
+      const el = $('#modal-produto-subtotal');
+      if (el && this.produtoModalAtual) el.textContent = formatarMoeda(this.produtoModalAtual.preco * this.qtdModalAtual);
+    },
+
+    ligarEventosModalProduto(){
+      $('#modal-qtd-mais')?.addEventListener('click', () => {
+        this.qtdModalAtual++;
+        $('#modal-qtd-valor').textContent = this.qtdModalAtual;
+        this.atualizarSubtotalModalProduto();
+      });
+      $('#modal-qtd-menos')?.addEventListener('click', () => {
+        if (this.qtdModalAtual <= 1) return;
+        this.qtdModalAtual--;
+        $('#modal-qtd-valor').textContent = this.qtdModalAtual;
+        this.atualizarSubtotalModalProduto();
+      });
+      $('#btn-fechar-modal-produto')?.addEventListener('click', () => this.fecharModalProduto());
+      $('#btn-adicionar-modal-produto')?.addEventListener('click', () => {
+        if (!this.produtoModalAtual) return;
+        const obs = $('#modal-produto-obs').value.trim();
+        this.adicionarAoCarrinho(this.produtoModalAtual, obs, this.qtdModalAtual);
+        this.atualizarCarrinhoUI();
+        this.sincronizarQtdCardapio();
+        mostrarToast(`${this.produtoModalAtual.nome} adicionado ao pedido!`);
+        this.fecharModalProduto();
+      });
+    },
+
+    adicionarAoCarrinho(produto, obs, qtd){
+      qtd = qtd || 1;
       const chave = produto.id + '::' + obs;
       let item = this.carrinho.find(i => i.chave === chave);
       if (item){
-        item.qtd += 1;
+        item.qtd += qtd;
       } else {
-        this.carrinho.push({ chave, produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd: 1, obs });
+        this.carrinho.push({ chave, produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd, obs });
       }
-      this.salvarCarrinhoSessao();
-    },
-
-    removerUmDoCarrinho(produtoId, obs){
-      const chave = produtoId + '::' + obs;
-      let item = this.carrinho.find(i => i.chave === chave);
-      if (!item){
-        // fallback: remove de qualquer item com o mesmo produto (sem obs específica)
-        item = this.carrinho.find(i => i.produtoId === produtoId);
-      }
-      if (!item) return;
-      item.qtd -= 1;
-      if (item.qtd <= 0) this.carrinho = this.carrinho.filter(i => i !== item);
       this.salvarCarrinhoSessao();
     },
 
@@ -887,11 +902,19 @@
     sincronizarQtdCardapio(){
       $$('.item-card').forEach(card => {
         const id = card.dataset.produtoId;
-        const span = $('.qtd', card);
-        const menos = $('.btn-menos', card);
         const nova = this.qtdNoCarrinhoSemObs(id);
-        if (span) span.textContent = nova;
-        if (menos) menos.disabled = nova <= 0;
+        const emoji = $('.emoji', card);
+        let badge = $('.badge-qtd-carrinho', card);
+        if (nova > 0){
+          if (!badge){
+            badge = document.createElement('span');
+            badge.className = 'badge-qtd-carrinho';
+            emoji.appendChild(badge);
+          }
+          badge.textContent = nova;
+        } else if (badge){
+          badge.remove();
+        }
       });
     },
 
@@ -903,7 +926,7 @@
 
       $$('.btn-carrinho, #flutuante-carrinho').forEach(el => el.addEventListener('click', abrir));
       $('#fechar-carrinho')?.addEventListener('click', fechar);
-      overlay?.addEventListener('click', () => { fechar(); this.fecharCheckout(); });
+      overlay?.addEventListener('click', () => { fechar(); this.fecharCheckout(); this.fecharModalProduto(); });
 
       window.addEventListener('resize', () => this.atualizarCarrinhoUI());
     },

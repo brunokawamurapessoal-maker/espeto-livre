@@ -332,17 +332,20 @@ body.trava-scroll{ overflow:hidden; height:100%; }
 
 .item-card{
   background: var(--carvao-2); border:1px solid var(--linha); border-radius: var(--raio);
-  padding:16px; display:flex; gap:14px; position:relative;
-  transition: border-color .15s;
+  padding:16px; display:flex; gap:14px; position:relative; cursor:pointer;
+  transition: border-color .15s, transform .12s;
 }
-.item-card:hover{ border-color: var(--fumaca-escura); }
-.item-card.indisponivel{ opacity:.5; }
+.item-card:hover{ border-color: var(--fumaca-escura); transform: translateY(-2px); }
+.item-card:active{ transform: translateY(0); }
+.item-card:focus-visible{ outline: 2px solid var(--labareda); outline-offset: 2px; }
+.item-card.indisponivel{ opacity:.5; cursor:default; }
+.item-card.indisponivel:hover{ transform:none; }
 .item-card .emoji{
-  flex:0 0 auto; width:56px; height:56px; border-radius: 12px;
+  flex:0 0 auto; width:56px; height:56px; border-radius: 12px; position:relative;
   background: var(--carvao-3); display:flex; align-items:center; justify-content:center;
-  font-size:1.7rem; overflow:hidden;
+  font-size:1.7rem; overflow:visible;
 }
-.item-card .emoji img{ width:100%; height:100%; object-fit:cover; }
+.item-card .emoji img{ width:100%; height:100%; object-fit:cover; border-radius:12px; }
 .item-card .info{ flex:1; min-width:0; }
 .item-card .linha-topo{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
 .item-card h3{ font-family: var(--fonte-corpo); font-weight:700; font-size:1rem; color:var(--creme); }
@@ -352,7 +355,12 @@ body.trava-scroll{ overflow:hidden; height:100%; }
   font-size:.7rem; color: var(--alerta); text-transform:uppercase; letter-spacing:1px; font-weight:700; margin-top:6px; display:inline-block;
 }
 
-.linha-controles{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; gap:10px; }
+.badge-qtd-carrinho{
+  position:absolute; top:-7px; right:-7px; min-width:20px; height:20px; padding:0 5px;
+  background: var(--brasa); color: var(--creme); border-radius:999px; font-size:.7rem; font-weight:800;
+  display:flex; align-items:center; justify-content:center; box-shadow: 0 0 0 2px var(--carvao-2);
+}
+
 .stepper{ display:flex; align-items:center; gap:0; border:1px solid var(--linha); border-radius:999px; overflow:hidden; }
 .stepper button{
   background: var(--carvao-3); color:var(--creme); border:none; width:32px; height:32px;
@@ -362,19 +370,6 @@ body.trava-scroll{ overflow:hidden; height:100%; }
 .stepper button:hover{ background: var(--brasa); }
 .stepper button:disabled{ opacity:.3; cursor:not-allowed; background:var(--carvao-3); }
 .stepper .qtd{ width:34px; text-align:center; font-weight:700; font-size:.92rem; }
-
-.btn-obs{
-  background:none; border:none; color: var(--fumaca); font-size:.78rem;
-  display:flex; align-items:center; gap:5px; text-decoration:underline; text-underline-offset:3px;
-}
-.btn-obs:hover{ color: var(--labareda-suave); }
-
-.campo-obs-item{ margin-top:10px; }
-.campo-obs-item textarea{
-  width:100%; background: var(--carvao-1); border:1px solid var(--linha); border-radius: var(--raio-pequeno);
-  color: var(--creme); padding:9px 11px; resize:vertical; min-height:52px; font-size:.85rem;
-}
-.campo-obs-item textarea::placeholder{ color: var(--fumaca-escura); }
 
 /* ==========================================================================
    Carrinho — painel lateral (desktop) / gaveta inferior (mobile)
@@ -431,6 +426,7 @@ body.trava-scroll{ overflow:hidden; height:100%; }
 @media (min-width: 720px){ .modal-fundo{ align-items:center; } }
 
 .modal-caixa{
+  position: relative;
   background: var(--carvao-2); width:100%; max-width:560px;
   max-height:92vh; overflow-y:auto;
   border-radius: 20px 20px 0 0; border:1px solid var(--linha);
@@ -442,6 +438,25 @@ body.trava-scroll{ overflow:hidden; height:100%; }
 
 .modal-caixa h2{ font-size:1.7rem; margin-bottom:4px; }
 .modal-caixa .passo-legenda{ color: var(--fumaca); font-size:.85rem; margin-bottom:20px; }
+
+/* ---- Modal de produto (abre ao clicar em um item do cardápio) ---- */
+.modal-caixa.modal-produto-caixa{ padding:0; }
+.produto-modal-foto{
+  width:100%; aspect-ratio: 16/10; background: var(--carvao-3);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  border-radius: 20px 20px 0 0;
+}
+.produto-modal-foto img{ width:100%; height:100%; object-fit:cover; }
+.produto-modal-foto .emoji-grande{ font-size:4rem; }
+.produto-modal-corpo{ padding: 22px 24px 26px; }
+.produto-modal-corpo h2{ font-size:1.6rem; margin-bottom:6px; }
+.produto-modal-descricao{ color: var(--fumaca); font-size:.92rem; line-height:1.5; margin-bottom:10px; }
+.produto-modal-preco{
+  color: var(--labareda-suave); font-weight:700; font-size:1.35rem;
+  font-family: var(--fonte-display); letter-spacing:.5px; margin-bottom:22px;
+}
+.stepper-grande button{ width:44px; height:44px; font-size:1.3rem; }
+.stepper-grande .qtd{ width:46px; font-size:1.05rem; }
 
 .progresso-etapas{ display:flex; gap:6px; margin-bottom:22px; }
 .progresso-etapas span{ flex:1; height:4px; border-radius:2px; background: var(--linha); }
