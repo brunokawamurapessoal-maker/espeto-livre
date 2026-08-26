@@ -149,6 +149,15 @@
     return (Number(valor) || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   }
 
+  function formatarNumero(valor){
+    return (Number(valor) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  }
+
+  function formatarDataCurta(isoData){
+    const [ano, mes, dia] = isoData.split('-');
+    return `${dia}/${mes}`;
+  }
+
   function gerarId(prefixo){
     return (prefixo || 'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   }
@@ -222,7 +231,9 @@
     bairros: 'espetolivre_bairros',
     config: 'espetolivre_config',
     pedidos: 'espetolivre_pedidos',
-    clientes: 'espetolivre_clientes'
+    clientes: 'espetolivre_clientes',
+    insumos: 'espetolivre_insumos',
+    fichasTecnicas: 'espetolivre_fichas_tecnicas'
   };
 
   function obter(chave, padrao){
@@ -291,6 +302,8 @@
     }
     if (!localStorage.getItem(CHAVES.pedidos)) salvar(CHAVES.pedidos, []);
     if (!localStorage.getItem(CHAVES.clientes)) salvar(CHAVES.clientes, {});
+    if (!localStorage.getItem(CHAVES.insumos)) salvar(CHAVES.insumos, []);
+    if (!localStorage.getItem(CHAVES.fichasTecnicas)) salvar(CHAVES.fichasTecnicas, {});
   }
 
   const Dados = {
@@ -303,8 +316,61 @@
     getPedidos: () => obter(CHAVES.pedidos, []),
     salvarPedidos: (lista) => salvar(CHAVES.pedidos, lista),
     getClientes: () => obter(CHAVES.clientes, {}),
-    salvarClientes: (obj) => salvar(CHAVES.clientes, obj)
+    salvarClientes: (obj) => salvar(CHAVES.clientes, obj),
+    getInsumos: () => obter(CHAVES.insumos, []),
+    salvarInsumos: (lista) => salvar(CHAVES.insumos, lista),
+    getFichasTecnicas: () => obter(CHAVES.fichasTecnicas, {}),
+    salvarFichasTecnicas: (obj) => salvar(CHAVES.fichasTecnicas, obj)
   };
+
+  /* ========================================================================
+     3.5 RECEITA — custo de insumos, ficha técnica e estoque
+     ======================================================================== */
+
+  /* Calcula o custo de um produto somando (quantidade usada × custo do insumo)
+     de cada item da ficha técnica. Retorna null se o produto não tem ficha
+     técnica cadastrada (custo desconhecido, não é o mesmo que custo zero). */
+  function calcularCustoProduto(produtoId, fichas, insumos){
+    fichas = fichas || Dados.getFichasTecnicas();
+    insumos = insumos || Dados.getInsumos();
+    const ficha = fichas[produtoId];
+    if (!ficha || !ficha.length) return null;
+    const mapaInsumos = {};
+    insumos.forEach(i => { mapaInsumos[i.id] = i; });
+    let total = 0;
+    let algumEncontrado = false;
+    ficha.forEach(item => {
+      const insumo = mapaInsumos[item.insumoId];
+      if (!insumo) return;
+      algumEncontrado = true;
+      total += (insumo.custoUnidade || 0) * (item.quantidade || 0);
+    });
+    return algumEncontrado ? total : null;
+  }
+
+  /* Deduz do estoque os insumos usados por uma lista de itens vendidos
+     (chamado ao finalizar um pedido). Retorna a lista de insumos atualizada
+     — quem chamar é responsável por persistir com Dados.salvarInsumos(). */
+  function deduzirEstoquePorVenda(itensVendidos, produtos, fichas, insumos){
+    const mapaProdutoPorNome = {};
+    produtos.forEach(p => { mapaProdutoPorNome[p.nome] = p; });
+    const insumosAtualizados = insumos.map(i => Object.assign({}, i));
+    const mapaInsumos = {};
+    insumosAtualizados.forEach(i => { mapaInsumos[i.id] = i; });
+
+    itensVendidos.forEach(itemVendido => {
+      const produto = mapaProdutoPorNome[itemVendido.nome];
+      if (!produto) return;
+      const ficha = fichas[produto.id];
+      if (!ficha) return;
+      ficha.forEach(entrada => {
+        const insumo = mapaInsumos[entrada.insumoId];
+        if (!insumo) return;
+        insumo.estoqueAtual = (insumo.estoqueAtual || 0) - (entrada.quantidade || 0) * itemVendido.qtd;
+      });
+    });
+    return insumosAtualizados;
+  }
 
   /* Calcula o frete com base na distância do bairro escolhido.
      fórmula: taxa fixa + (ida e volta * distância * preço do combustível / consumo)
@@ -1059,6 +1125,15 @@
       const frete = this.tipoEntrega === 'delivery' ? (this.freteAtual || 0) : 0;
       const total = subtotal + frete;
 
+      // calcula o custo de cada item no momento da venda (via ficha técnica),
+      // pra que o lucro histórico não mude depois se o custo do insumo for atualizado
+      const fichas = Dados.getFichasTecnicas();
+      const insumosAtuais = Dados.getInsumos();
+      const itensComCusto = this.carrinho.map(i => ({
+        nome: i.nome, preco: i.preco, qtd: i.qtd, obs: i.obs,
+        custoUnitario: calcularCustoProduto(i.produtoId, fichas, insumosAtuais)
+      }));
+
       const pedido = {
         id: gerarId('pedido'),
         numero: Math.floor(1000 + Math.random()*9000),
@@ -1066,7 +1141,7 @@
         cliente: { nome, telefone },
         tipoEntrega: this.tipoEntrega,
         endereco,
-        itens: this.carrinho.map(i => ({ nome: i.nome, preco: i.preco, qtd: i.qtd, obs: i.obs })),
+        itens: itensComCusto,
         observacoesGerais: obsGerais,
         pagamento: { forma: formaPagamento, trocoPara },
         subtotal, frete, total,
@@ -1077,6 +1152,10 @@
       const pedidos = Dados.getPedidos();
       pedidos.unshift(pedido);
       Dados.salvarPedidos(pedidos);
+
+      // desconta do estoque os insumos usados nesta venda, conforme a ficha técnica
+      const insumosAtualizados = deduzirEstoquePorVenda(itensComCusto, this.produtos, fichas, insumosAtuais);
+      Dados.salvarInsumos(insumosAtualizados);
 
       // salva/atualiza o cadastro do cliente para agilizar o próximo pedido,
       // preservando dados já existentes (ex: e-mail) e guardando o endereço
@@ -1311,6 +1390,14 @@
     editandoBairroId: null,
     fotoProdutoAtual: null,
     formProdutoLigado: false,
+    periodoReceita: '7dias',
+    produtoFichaSelecionado: null,
+    editandoInsumoId: null,
+    formInsumoLigado: false,
+    formFichaLigado: false,
+    receitaSubNavLigado: false,
+    graficoEvolucao: null,
+    graficoProdutos: null,
 
     iniciar(){
       if (!$('#app-admin')) return;
@@ -1345,6 +1432,7 @@
       this.renderizarCardapio();
       this.renderizarPedidos();
       this.renderizarEntrega();
+      this.renderizarReceita();
       this.renderizarConfiguracoes();
       this.mostrarAba('painel');
     },
@@ -1366,6 +1454,9 @@
       this.abaAtual = aba;
       $$('.lateral-admin nav button').forEach(b => b.classList.toggle('ativa', b.dataset.aba === aba));
       $$('.secao-admin').forEach(s => s.classList.toggle('ativa', s.dataset.secao === aba));
+      // os gráficos da Receita são criados com o canvas ainda escondido (display:none)
+      // e ficam com tamanho zero — recria-los aqui, já com a aba visível, resolve isso.
+      if (aba === 'receita') this.renderizarReceitaPainel();
     },
 
     /* ---- Painel (métricas rápidas) ---- */
@@ -1677,6 +1768,371 @@
       $('#painel-form-bairro').hidden = true;
       this.renderizarEntrega();
       mostrarToast('Bairro salvo!');
+    },
+
+    /* ==== RECEITA ==== */
+    renderizarReceita(){
+      if (!$('#metrica-receita-faturamento')) return;
+
+      if (!this.receitaSubNavLigado){
+        this.receitaSubNavLigado = true;
+        $$('.receita-subnav-btn').forEach(btn => btn.addEventListener('click', () => {
+          $$('.receita-subnav-btn').forEach(b => b.classList.toggle('ativa', b === btn));
+          $$('.receita-subsecao').forEach(s => s.classList.toggle('ativa', s.dataset.subsecao === btn.dataset.subaba));
+        }));
+        $$('#filtro-periodo-receita button').forEach(btn => btn.addEventListener('click', () => {
+          $$('#filtro-periodo-receita button').forEach(b => b.classList.remove('ativa'));
+          btn.classList.add('ativa');
+          this.periodoReceita = btn.dataset.periodo;
+          this.renderizarReceitaPainel();
+        }));
+      }
+
+      this.renderizarReceitaPainel();
+      this.renderizarInsumos();
+      this.renderizarFichasTecnicas();
+    },
+
+    obterIntervaloPeriodo(periodo){
+      const agora = new Date();
+      const fim = new Date(agora); fim.setHours(23,59,59,999);
+      let inicio;
+      if (periodo === 'hoje'){
+        inicio = new Date(agora); inicio.setHours(0,0,0,0);
+      } else if (periodo === '30dias'){
+        inicio = new Date(agora); inicio.setDate(inicio.getDate()-29); inicio.setHours(0,0,0,0);
+      } else if (periodo === 'mes'){
+        inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      } else if (periodo === 'tudo'){
+        inicio = new Date(2000,0,1);
+      } else { // 7dias (padrão)
+        inicio = new Date(agora); inicio.setDate(inicio.getDate()-6); inicio.setHours(0,0,0,0);
+      }
+      return { inicio, fim };
+    },
+
+    calcularDadosReceita(pedidos){
+      const porDia = {};
+      const porProduto = {};
+      let faturamentoTotal = 0;
+      let custoTotalConhecido = 0;
+      let temCustoDesconhecido = false;
+
+      pedidos.forEach(p => {
+        const diaChave = p.dataHora.slice(0,10);
+        if (!porDia[diaChave]) porDia[diaChave] = { faturamento:0, custo:0, lucro:0 };
+
+        p.itens.forEach(item => {
+          const fat = item.preco * item.qtd;
+          faturamentoTotal += fat;
+          porDia[diaChave].faturamento += fat;
+
+          let custoItem = 0;
+          if (item.custoUnitario != null){
+            custoItem = item.custoUnitario * item.qtd;
+            custoTotalConhecido += custoItem;
+            porDia[diaChave].custo += custoItem;
+          } else {
+            temCustoDesconhecido = true;
+          }
+
+          if (!porProduto[item.nome]) porProduto[item.nome] = { nome:item.nome, qtd:0, faturamento:0, custo:0, custoDesconhecido:false };
+          porProduto[item.nome].qtd += item.qtd;
+          porProduto[item.nome].faturamento += fat;
+          if (item.custoUnitario != null){
+            porProduto[item.nome].custo += custoItem;
+          } else {
+            porProduto[item.nome].custoDesconhecido = true;
+          }
+        });
+
+        if (p.frete){
+          faturamentoTotal += p.frete;
+          porDia[diaChave].faturamento += p.frete;
+        }
+        porDia[diaChave].lucro = porDia[diaChave].faturamento - porDia[diaChave].custo;
+      });
+
+      const lucroTotal = faturamentoTotal - custoTotalConhecido;
+      const margemMedia = faturamentoTotal > 0 ? (lucroTotal / faturamentoTotal) * 100 : null;
+
+      const ranking = Object.values(porProduto).map(p => {
+        const lucro = p.faturamento - p.custo;
+        return Object.assign({}, p, { lucro, margem: p.faturamento > 0 ? (lucro / p.faturamento) * 100 : null });
+      }).sort((a,b) => b.lucro - a.lucro);
+
+      return { porDia, porProduto: ranking, faturamentoTotal, custoTotalConhecido, lucroTotal, margemMedia, temCustoDesconhecido };
+    },
+
+    renderizarReceitaPainel(){
+      const { inicio, fim } = this.obterIntervaloPeriodo(this.periodoReceita);
+      const pedidos = Dados.getPedidos().filter(p => {
+        if (p.status === 'cancelado') return false;
+        const d = new Date(p.dataHora);
+        return d >= inicio && d <= fim;
+      });
+
+      const dados = this.calcularDadosReceita(pedidos);
+
+      $('#metrica-receita-faturamento').textContent = formatarMoeda(dados.faturamentoTotal);
+      $('#metrica-receita-custo').textContent = formatarMoeda(dados.custoTotalConhecido);
+      $('#metrica-receita-lucro').textContent = formatarMoeda(dados.lucroTotal);
+      $('#metrica-receita-margem').textContent = dados.margemMedia != null ? formatarNumero(dados.margemMedia) + '%' : '—';
+      $('#aviso-custo-incompleto').hidden = !dados.temCustoDesconhecido;
+
+      const diasOrdenados = Object.keys(dados.porDia).sort();
+      this.renderizarGraficoEvolucao(diasOrdenados, dados.porDia);
+      this.renderizarGraficoProdutos(dados.porProduto);
+
+      const tbody = $('#tabela-receita-produtos-corpo');
+      tbody.innerHTML = dados.porProduto.length ? dados.porProduto.map(p => `
+        <tr>
+          <td>${escapar(p.nome)}${p.custoDesconhecido ? ' <span title="Ficha técnica incompleta" style="color:var(--alerta)">⚠️</span>' : ''}</td>
+          <td>${p.qtd}</td>
+          <td>${formatarMoeda(p.faturamento)}</td>
+          <td>${formatarMoeda(p.custo)}</td>
+          <td>${formatarMoeda(p.lucro)}</td>
+          <td>${p.margem != null ? formatarNumero(p.margem) + '%' : '—'}</td>
+        </tr>`).join('') : `<tr><td colspan="6"><div class="vazio-admin"><div class="icone">💰</div>Nenhuma venda nesse período ainda.</div></td></tr>`;
+    },
+
+    renderizarGraficoEvolucao(dias, porDia){
+      const canvas = $('#grafico-receita-evolucao');
+      if (!canvas || typeof Chart === 'undefined') return;
+      if (this.graficoEvolucao) this.graficoEvolucao.destroy();
+      const corTexto = '#a89a8a';
+      this.graficoEvolucao = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: dias.map(formatarDataCurta),
+          datasets: [
+            { label:'Faturamento', data: dias.map(d=>porDia[d].faturamento), backgroundColor:'#e88e3f', borderRadius:4, maxBarThickness:26 },
+            { label:'Custo', data: dias.map(d=>porDia[d].custo), backgroundColor:'#8a7a6c', borderRadius:4, maxBarThickness:26 },
+            { label:'Lucro', data: dias.map(d=>porDia[d].lucro), backgroundColor:'#7c9a63', borderRadius:4, maxBarThickness:26 }
+          ]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ position:'bottom', labels:{ color:'#f3ebdc', boxWidth:12, font:{ family:'Poppins', size:11 } } } },
+          scales:{
+            x:{ ticks:{ color:corTexto, font:{ size:10 } }, grid:{ display:false } },
+            y:{ ticks:{ color:corTexto, font:{ size:10 } }, grid:{ color:'rgba(255,255,255,.06)' }, beginAtZero:true }
+          }
+        }
+      });
+    },
+
+    renderizarGraficoProdutos(ranking){
+      const canvas = $('#grafico-receita-produtos');
+      if (!canvas || typeof Chart === 'undefined') return;
+      if (this.graficoProdutos) this.graficoProdutos.destroy();
+      const top = ranking.slice(0,6);
+      this.graficoProdutos = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: top.map(p=>p.nome),
+          datasets: [{ label:'Lucro', data: top.map(p=>p.lucro), backgroundColor:'#c9462a', borderRadius:6, maxBarThickness:22 }]
+        },
+        options: {
+          indexAxis:'y', responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ display:false } },
+          scales:{
+            x:{ ticks:{ color:'#a89a8a', font:{ size:10 } }, grid:{ color:'rgba(255,255,255,.06)' }, beginAtZero:true },
+            y:{ ticks:{ color:'#f3ebdc', font:{ size:11 } }, grid:{ display:false } }
+          }
+        }
+      });
+    },
+
+    /* ---- Insumos ---- */
+    renderizarInsumos(){
+      const tbody = $('#tabela-insumos-corpo');
+      if (!tbody) return;
+      const busca = ($('#busca-insumo')?.value || '').toLowerCase();
+      let insumos = Dados.getInsumos().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+      if (busca) insumos = insumos.filter(i => i.nome.toLowerCase().includes(busca));
+
+      tbody.innerHTML = insumos.length ? insumos.map(i => {
+        const baixo = i.estoqueMinimo > 0 && i.estoqueAtual <= i.estoqueMinimo;
+        return `
+        <tr data-id="${i.id}">
+          <td><strong>${escapar(i.nome)}</strong></td>
+          <td>${i.unidade}</td>
+          <td>${formatarMoeda(i.custoUnidade)}</td>
+          <td style="${baixo ? 'color:var(--brasa); font-weight:700;' : ''}">${formatarNumero(i.estoqueAtual)} ${i.unidade}${baixo ? ' ⚠️' : ''}</td>
+          <td>${i.estoqueMinimo ? formatarNumero(i.estoqueMinimo) + ' ' + i.unidade : '—'}</td>
+          <td class="acoes-linha">
+            <button class="btn-editar-insumo" data-id="${i.id}">Editar</button>
+            <button class="excluir btn-excluir-insumo" data-id="${i.id}">Excluir</button>
+          </td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="6"><div class="vazio-admin"><div class="icone">🥩</div>Nenhum insumo cadastrado ainda.</div></td></tr>`;
+
+      $$('.btn-editar-insumo', tbody).forEach(btn => btn.addEventListener('click', () => this.abrirFormInsumo(btn.dataset.id)));
+      $$('.btn-excluir-insumo', tbody).forEach(btn => btn.addEventListener('click', () => {
+        if (!confirm('Excluir este insumo? Ele também será removido de todas as fichas técnicas que o usam.')) return;
+        Dados.salvarInsumos(Dados.getInsumos().filter(i => i.id !== btn.dataset.id));
+        const fichas = Dados.getFichasTecnicas();
+        Object.keys(fichas).forEach(produtoId => {
+          fichas[produtoId] = fichas[produtoId].filter(item => item.insumoId !== btn.dataset.id);
+        });
+        Dados.salvarFichasTecnicas(fichas);
+        this.renderizarInsumos();
+        this.atualizarSelectsFicha();
+        mostrarToast('Insumo excluído.');
+      }));
+
+      if (!this.formInsumoLigado){
+        this.formInsumoLigado = true;
+        $('#busca-insumo')?.addEventListener('input', () => this.renderizarInsumos());
+        $('#btn-novo-insumo')?.addEventListener('click', () => this.abrirFormInsumo(null));
+        $('#btn-cancelar-insumo')?.addEventListener('click', () => this.fecharFormInsumo());
+        $('#form-insumo')?.addEventListener('submit', (e) => this.salvarFormInsumo(e));
+      }
+    },
+
+    abrirFormInsumo(id){
+      this.editandoInsumoId = id;
+      $('#painel-form-insumo').hidden = false;
+      $('#painel-form-insumo').scrollIntoView({ behavior:'smooth', block:'center' });
+      if (id){
+        const i = Dados.getInsumos().find(x=>x.id===id);
+        $('#titulo-form-insumo').textContent = 'Editar insumo';
+        $('#campo-insumo-nome').value = i.nome;
+        $('#campo-insumo-unidade').value = i.unidade;
+        $('#campo-insumo-custo').value = i.custoUnidade;
+        $('#campo-insumo-estoque').value = i.estoqueAtual;
+        $('#campo-insumo-estoque-minimo').value = i.estoqueMinimo || '';
+      } else {
+        $('#titulo-form-insumo').textContent = 'Novo insumo';
+        $('#form-insumo').reset();
+      }
+    },
+    fecharFormInsumo(){
+      $('#painel-form-insumo').hidden = true;
+      this.editandoInsumoId = null;
+    },
+    salvarFormInsumo(e){
+      e.preventDefault();
+      const dados = {
+        nome: $('#campo-insumo-nome').value.trim(),
+        unidade: $('#campo-insumo-unidade').value,
+        custoUnidade: parseFloat($('#campo-insumo-custo').value) || 0,
+        estoqueAtual: parseFloat($('#campo-insumo-estoque').value) || 0,
+        estoqueMinimo: parseFloat($('#campo-insumo-estoque-minimo').value) || 0
+      };
+      if (!dados.nome){ mostrarToast('Informe o nome do insumo.'); return; }
+      const lista = Dados.getInsumos();
+      if (this.editandoInsumoId){
+        Object.assign(lista.find(i=>i.id===this.editandoInsumoId), dados);
+      } else {
+        lista.push(Object.assign({ id: gerarId('insumo') }, dados));
+      }
+      Dados.salvarInsumos(lista);
+      this.fecharFormInsumo();
+      this.renderizarInsumos();
+      this.atualizarSelectsFicha();
+      mostrarToast('Insumo salvo!');
+    },
+
+    /* ---- Fichas técnicas ---- */
+    renderizarFichasTecnicas(){
+      const select = $('#select-ficha-produto');
+      if (!select) return;
+      const produtos = Dados.getProdutos().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+      select.innerHTML = '<option value="">Selecione um produto...</option>' +
+        produtos.map(p => `<option value="${p.id}">${escapar(p.nome)} (${escapar(p.categoria)})</option>`).join('');
+
+      this.atualizarSelectsFicha();
+
+      if (!this.formFichaLigado){
+        this.formFichaLigado = true;
+        select.addEventListener('change', () => this.abrirFichaProduto(select.value));
+        $('#btn-add-ficha-item')?.addEventListener('click', () => this.adicionarItemFicha());
+      }
+    },
+
+    atualizarSelectsFicha(){
+      const selectInsumo = $('#campo-ficha-insumo');
+      if (!selectInsumo) return;
+      const insumos = Dados.getInsumos().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+      selectInsumo.innerHTML = '<option value="">Selecione...</option>' +
+        insumos.map(i => `<option value="${i.id}">${escapar(i.nome)} (${i.unidade})</option>`).join('');
+    },
+
+    abrirFichaProduto(produtoId){
+      this.produtoFichaSelecionado = produtoId;
+      const area = $('#area-ficha-tecnica');
+      if (!produtoId){ area.hidden = true; return; }
+      area.hidden = false;
+      const produto = Dados.getProdutos().find(p=>p.id===produtoId);
+      $('#titulo-ficha-produto').textContent = produto ? produto.nome : '—';
+      this.renderizarListaFicha();
+    },
+
+    renderizarListaFicha(){
+      const produtoId = this.produtoFichaSelecionado;
+      if (!produtoId) return;
+      const produto = Dados.getProdutos().find(p=>p.id===produtoId);
+      const fichas = Dados.getFichasTecnicas();
+      const insumos = Dados.getInsumos();
+      const mapaInsumos = {}; insumos.forEach(i => { mapaInsumos[i.id] = i; });
+      const itens = fichas[produtoId] || [];
+
+      const lista = $('#lista-ficha-itens');
+      lista.innerHTML = itens.length ? itens.map((item, idx) => {
+        const insumo = mapaInsumos[item.insumoId];
+        const custoItem = insumo ? insumo.custoUnidade * item.quantidade : 0;
+        return `
+          <div class="linha-ficha-item">
+            <span class="nome-insumo-ficha">${insumo ? escapar(insumo.nome) : '(insumo removido)'}</span>
+            <span class="qtd-insumo-ficha">${formatarNumero(item.quantidade)} ${insumo ? insumo.unidade : ''}</span>
+            <span class="custo-insumo-ficha">${formatarMoeda(custoItem)}</span>
+            <button type="button" class="remover-item-ficha" data-idx="${idx}" aria-label="Remover">✕</button>
+          </div>`;
+      }).join('') : `<p class="ajuda">Nenhum insumo adicionado a essa ficha ainda.</p>`;
+
+      $$('.remover-item-ficha', lista).forEach(btn => btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.idx);
+        const fichasAtuais = Dados.getFichasTecnicas();
+        fichasAtuais[produtoId].splice(idx, 1);
+        Dados.salvarFichasTecnicas(fichasAtuais);
+        this.renderizarListaFicha();
+      }));
+
+      const custoTotal = calcularCustoProduto(produtoId, fichas, insumos) || 0;
+      $('#preview-preco-ficha').textContent = formatarMoeda(produto ? produto.preco : 0);
+      $('#preview-custo-ficha').textContent = formatarMoeda(custoTotal);
+      const margemEl = $('#preview-margem-ficha');
+      if (produto && produto.preco > 0 && itens.length){
+        const margemReais = produto.preco - custoTotal;
+        const margemPct = (margemReais / produto.preco) * 100;
+        margemEl.textContent = `${formatarMoeda(margemReais)} (${formatarNumero(margemPct)}%)`;
+      } else {
+        margemEl.textContent = '—';
+      }
+    },
+
+    adicionarItemFicha(){
+      const produtoId = this.produtoFichaSelecionado;
+      if (!produtoId) return;
+      const insumoId = $('#campo-ficha-insumo').value;
+      const quantidade = parseFloat($('#campo-ficha-quantidade').value);
+      if (!insumoId || !(quantidade > 0)){ mostrarToast('Selecione o insumo e informe uma quantidade válida.'); return; }
+
+      const fichas = Dados.getFichasTecnicas();
+      if (!fichas[produtoId]) fichas[produtoId] = [];
+      const existente = fichas[produtoId].find(item => item.insumoId === insumoId);
+      if (existente){
+        existente.quantidade = quantidade;
+      } else {
+        fichas[produtoId].push({ insumoId, quantidade });
+      }
+      Dados.salvarFichasTecnicas(fichas);
+      $('#campo-ficha-insumo').value = '';
+      $('#campo-ficha-quantidade').value = '';
+      this.renderizarListaFicha();
+      mostrarToast('Insumo adicionado à ficha técnica!');
     },
 
     /* ---- Configurações gerais ---- */

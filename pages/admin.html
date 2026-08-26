@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="../assets/images/logo.png">
 <link rel="stylesheet" href="../assets/css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
 </head>
 <body>
 
@@ -49,6 +50,7 @@
       <button data-aba="cardapio">🍢 Cardápio</button>
       <button data-aba="pedidos">📋 Pedidos</button>
       <button data-aba="entrega">🛵 Entrega</button>
+      <button data-aba="receita">💰 Receita</button>
       <button data-aba="configuracoes">⚙️ Configurações</button>
     </nav>
     <a href="../index.html" style="font-size:.82rem; color:var(--fumaca); margin-bottom:10px; display:block;">← Ver site</a>
@@ -238,6 +240,160 @@
         <thead><tr><th>Bairro</th><th>Distância</th><th>Frete calculado</th><th>Ações</th></tr></thead>
         <tbody id="tabela-bairros-corpo"></tbody>
       </table>
+    </section>
+
+    <!-- ---- RECEITA ---- -->
+    <section class="secao-admin" data-secao="receita">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Receita</h1>
+          <p>Custo de insumos, ficha técnica de cada produto, estoque e margem de lucro.</p>
+        </div>
+      </div>
+
+      <div class="filtros-chip" style="margin-bottom:22px;">
+        <button class="receita-subnav-btn ativa" data-subaba="painel" type="button">Visão geral</button>
+        <button class="receita-subnav-btn" data-subaba="insumos" type="button">Insumos</button>
+        <button class="receita-subnav-btn" data-subaba="fichas" type="button">Fichas técnicas</button>
+      </div>
+
+      <!-- Visão geral -->
+      <div class="receita-subsecao ativa" data-subsecao="painel">
+        <div class="filtros-chip" id="filtro-periodo-receita" style="margin-bottom:20px;">
+          <button data-periodo="hoje" type="button">Hoje</button>
+          <button data-periodo="7dias" class="ativa" type="button">7 dias</button>
+          <button data-periodo="30dias" type="button">30 dias</button>
+          <button data-periodo="mes" type="button">Este mês</button>
+          <button data-periodo="tudo" type="button">Tudo</button>
+        </div>
+
+        <div class="grade-metricas">
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-faturamento">R$ 0,00</div><div class="rotulo">Faturamento</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-custo">R$ 0,00</div><div class="rotulo">Custo de insumos</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-lucro">R$ 0,00</div><div class="rotulo">Lucro bruto</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-margem">—</div><div class="rotulo">Margem média</div></div>
+        </div>
+
+        <p class="ajuda" id="aviso-custo-incompleto" style="margin-bottom:18px;" hidden>
+          ⚠️ Alguns itens vendidos no período ainda não têm ficha técnica cadastrada, então o custo/lucro
+          mostrado aqui está incompleto. Cadastre as fichas técnicas na aba "Fichas técnicas" para ver os
+          números certos.
+        </p>
+
+        <div class="grade-graficos-receita">
+          <div class="cartao-grafico">
+            <h3>Faturamento × custo × lucro</h3>
+            <div class="wrap-grafico"><canvas id="grafico-receita-evolucao"></canvas></div>
+          </div>
+          <div class="cartao-grafico">
+            <h3>Produtos mais lucrativos</h3>
+            <div class="wrap-grafico"><canvas id="grafico-receita-produtos"></canvas></div>
+          </div>
+        </div>
+
+        <h3 class="subtitulo-perfil" style="margin:26px 0 12px;">Desempenho por produto</h3>
+        <table class="tabela-admin">
+          <thead><tr><th>Produto</th><th>Qtd. vendida</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Margem</th></tr></thead>
+          <tbody id="tabela-receita-produtos-corpo"></tbody>
+        </table>
+      </div>
+
+      <!-- Insumos -->
+      <div class="receita-subsecao" data-subsecao="insumos">
+        <div class="cabecalho-admin">
+          <div>
+            <p class="ajuda" style="margin-bottom:0;">Cadastre os insumos (matéria-prima) com o custo e o estoque atual de cada um.</p>
+          </div>
+          <button class="btn btn-primario" id="btn-novo-insumo">+ Novo insumo</button>
+        </div>
+
+        <div class="painel-formulario" id="painel-form-insumo" hidden>
+          <h3 id="titulo-form-insumo">Novo insumo</h3>
+          <form id="form-insumo">
+            <div class="grade-formulario">
+              <div class="campo largo">
+                <label for="campo-insumo-nome">Nome do insumo</label>
+                <input type="text" id="campo-insumo-nome" required placeholder="Ex: Carne bovina (alcatra)">
+              </div>
+              <div class="campo">
+                <label for="campo-insumo-unidade">Unidade de medida</label>
+                <select id="campo-insumo-unidade">
+                  <option value="kg">Quilograma (kg)</option>
+                  <option value="g">Grama (g)</option>
+                  <option value="L">Litro (L)</option>
+                  <option value="ml">Mililitro (ml)</option>
+                  <option value="un">Unidade (un)</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label for="campo-insumo-custo">Custo por unidade (R$)</label>
+                <input type="number" id="campo-insumo-custo" step="0.01" min="0" required placeholder="0,00">
+              </div>
+              <div class="campo">
+                <label for="campo-insumo-estoque">Estoque atual</label>
+                <input type="number" id="campo-insumo-estoque" step="0.001" min="0" required placeholder="0">
+              </div>
+              <div class="campo">
+                <label for="campo-insumo-estoque-minimo">Estoque mínimo (alerta)</label>
+                <input type="number" id="campo-insumo-estoque-minimo" step="0.001" min="0" placeholder="0">
+              </div>
+            </div>
+            <div class="botoes-etapa" style="max-width:340px;">
+              <button type="button" class="btn btn-fantasma" id="btn-cancelar-insumo">Cancelar</button>
+              <button type="submit" class="btn btn-primario">Salvar insumo</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="barra-ferramentas">
+          <div class="busca"><input type="text" id="busca-insumo" placeholder="Buscar insumo..."></div>
+        </div>
+
+        <table class="tabela-admin">
+          <thead><tr><th>Insumo</th><th>Unidade</th><th>Custo/unid.</th><th>Estoque atual</th><th>Estoque mín.</th><th>Ações</th></tr></thead>
+          <tbody id="tabela-insumos-corpo"></tbody>
+        </table>
+      </div>
+
+      <!-- Fichas técnicas -->
+      <div class="receita-subsecao" data-subsecao="fichas">
+        <p class="ajuda" style="margin-bottom:18px;">
+          Escolha um produto do cardápio e defina quais insumos (e quanto de cada um) ele consome.
+          É a partir disso que o custo e a margem de lucro são calculados automaticamente.
+        </p>
+
+        <div class="campo" style="max-width:380px;">
+          <label for="select-ficha-produto">Produto</label>
+          <select id="select-ficha-produto"><option value="">Selecione um produto...</option></select>
+        </div>
+
+        <div id="area-ficha-tecnica" hidden>
+          <div class="cartao-config" style="margin-top:20px;">
+            <h3 id="titulo-ficha-produto">—</h3>
+            <div id="lista-ficha-itens" style="margin-bottom:18px;"></div>
+
+            <div class="grade-formulario" style="align-items:flex-end;">
+              <div class="campo">
+                <label for="campo-ficha-insumo">Insumo</label>
+                <select id="campo-ficha-insumo"><option value="">Selecione...</option></select>
+              </div>
+              <div class="campo">
+                <label for="campo-ficha-quantidade">Quantidade usada</label>
+                <input type="number" id="campo-ficha-quantidade" step="0.001" min="0" placeholder="0">
+              </div>
+              <div class="campo">
+                <button type="button" class="btn btn-fantasma" id="btn-add-ficha-item" style="width:100%;">+ Adicionar à ficha</button>
+              </div>
+            </div>
+
+            <div class="resumo-pedido" style="margin-top:18px;">
+              <div class="linha"><span>Preço de venda</span><span id="preview-preco-ficha">R$ 0,00</span></div>
+              <div class="linha"><span>Custo calculado</span><span id="preview-custo-ficha">R$ 0,00</span></div>
+              <div class="linha total"><span>Margem de lucro</span><span id="preview-margem-ficha">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ---- CONFIGURAÇÕES ---- -->
