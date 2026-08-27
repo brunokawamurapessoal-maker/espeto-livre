@@ -783,16 +783,14 @@
     renderizarCardapio(){
       const container = $('#lista-cardapio');
       if (!container) return;
-      const emojisCategoria = { 'Espetos de Carne':'🔥', 'Espetos de Frango':'🍗', 'Suínos & Embutidos':'🐷', 'Camarão & Peixe':'🦐', 'Vegetariano':'🌿', 'Acompanhamentos':'🍽️', 'Bebidas':'🥤' };
 
       container.innerHTML = this.categorias.map(cat => {
         const itens = this.produtos.filter(p => p.categoria === cat);
         return `
           <section class="secao-cardapio" id="cat-${slugify(cat)}">
             <div class="cabecalho-categoria">
-              <h2>${emojisCategoria[cat] || '🍢'} ${escapar(cat)}</h2>
+              <h2>${escapar(cat)}</h2>
             </div>
-            <div class="divisor-espeto"><div class="pedacos"><span></span><span></span><span></span><span></span><span></span></div></div>
             <div class="grade-itens">
               ${itens.map(p => this.templateItem(p)).join('')}
             </div>
@@ -814,11 +812,8 @@
             ${qtdAtual > 0 ? `<span class="badge-qtd-carrinho">${qtdAtual}</span>` : ''}
           </div>
           <div class="info">
-            <div class="linha-topo">
-              <h3>${escapar(p.nome)}</h3>
-              <span class="preco">${formatarMoeda(p.preco)}</span>
-            </div>
-            <p class="descricao">${escapar(p.descricao || '')}</p>
+            <h3>${escapar(p.nome)}</h3>
+            <span class="preco">${formatarMoeda(p.preco)}</span>
           </div>
         </article>`;
     },
@@ -899,7 +894,7 @@
       if (item){
         item.qtd += qtd;
       } else {
-        this.carrinho.push({ chave, produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd, obs });
+        this.carrinho.push({ chave, produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd, obs, foto: produto.foto || null, emoji: produto.emoji || '🍢' });
       }
       this.salvarCarrinhoSessao();
     },
@@ -910,7 +905,10 @@
 
     atualizarCarrinhoUI(){
       const totalItens = this.carrinho.reduce((s,i)=>s+i.qtd,0);
-      $$('.contagem-carrinho').forEach(el => el.textContent = totalItens);
+      $$('.contagem-carrinho').forEach(el => {
+        el.textContent = totalItens;
+        el.style.display = totalItens > 0 ? '' : 'none';
+      });
       $$('.btn-carrinho, .flutuante-carrinho').forEach(el => el.style.display = '');
 
       const flutuante = $('#flutuante-carrinho');
@@ -927,10 +925,11 @@
       } else {
         corpo.innerHTML = this.carrinho.map(i => `
           <div class="item-carrinho" data-chave="${escapar(i.chave)}">
+            <div class="miniatura-carrinho">${i.foto ? `<img src="${i.foto}" alt="">` : (i.emoji || '🍢')}</div>
             <div class="info">
-              <div class="nome">${i.qtd}x ${escapar(i.nome)}</div>
+              <div class="nome">${escapar(i.nome)}</div>
               ${i.obs ? `<div class="obs">"${escapar(i.obs)}"</div>` : ''}
-              <div class="preco-unit">${formatarMoeda(i.preco)} un.</div>
+              <div class="preco-unit">${formatarMoeda(i.preco)}</div>
               <div class="linha-baixo">
                 <div class="stepper" data-chave-carrinho="${escapar(i.chave)}">
                   <button class="btn-menos-carrinho" type="button" aria-label="Diminuir">−</button>
