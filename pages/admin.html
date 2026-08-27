@@ -188,7 +188,7 @@
 
       <div class="cartao-config">
         <h3>Parâmetros de cálculo do frete</h3>
-        <p class="ajuda">Frete = taxa base + (distância × 2 × preço da gasolina ÷ consumo por litro). Atualize o preço da gasolina sempre que ele mudar.</p>
+        <p class="ajuda">Frete = taxa do entregador + (distância × 2 × preço da gasolina ÷ consumo por litro). Atualize o preço da gasolina sempre que ele mudar.</p>
         <form id="form-parametros-frete">
           <div class="grade-formulario">
             <div class="campo">
@@ -200,11 +200,15 @@
               <input type="number" id="campo-consumo-km" step="0.1" min="1" required>
             </div>
             <div class="campo">
-              <label for="campo-taxa-base">Taxa base de entrega (R$)</label>
+              <label for="campo-taxa-base">Taxa fixa do entregador (R$)</label>
               <input type="number" id="campo-taxa-base" step="0.5" min="0" required>
             </div>
           </div>
-          <button type="submit" class="btn btn-primario">Salvar parâmetros</button>
+          <p class="ajuda" style="margin-top:2px;">
+            Esse valor é o que vai integralmente para o entregador em cada corrida — é descontado do frete
+            cobrado do cliente para calcular quanto sobra de fato pra casa (veja em Receita → Detalhamento da entrega).
+          </p>
+          <button type="submit" class="btn btn-primario" style="margin-top:12px;">Salvar parâmetros</button>
         </form>
       </div>
 
@@ -268,9 +272,9 @@
         </div>
 
         <div class="grade-metricas">
-          <div class="cartao-metrica"><div class="valor" id="metrica-receita-faturamento">R$ 0,00</div><div class="rotulo">Faturamento</div></div>
-          <div class="cartao-metrica"><div class="valor" id="metrica-receita-custo">R$ 0,00</div><div class="rotulo">Custo de insumos</div></div>
-          <div class="cartao-metrica"><div class="valor" id="metrica-receita-lucro">R$ 0,00</div><div class="rotulo">Lucro bruto</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-faturamento">R$ 0,00</div><div class="rotulo">Faturamento total</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-custo">R$ 0,00</div><div class="rotulo">Custo total (insumos + entregadores)</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-receita-lucro">R$ 0,00</div><div class="rotulo">Lucro líquido</div></div>
           <div class="cartao-metrica"><div class="valor" id="metrica-receita-margem">—</div><div class="rotulo">Margem média</div></div>
         </div>
 
@@ -278,6 +282,22 @@
           ⚠️ Alguns itens vendidos no período ainda não têm ficha técnica cadastrada, então o custo/lucro
           mostrado aqui está incompleto. Cadastre as fichas técnicas na aba "Fichas técnicas" para ver os
           números certos.
+        </p>
+
+        <h3 class="subtitulo-perfil" style="margin:26px 0 12px;">Detalhamento da entrega (frete)</h3>
+        <p class="ajuda" style="margin-bottom:14px;">
+          Do valor de frete cobrado do cliente, uma parte fixa é repassada ao entregador — o restante é o que
+          efetivamente fica com a casa. Configure o valor repassado em Entrega → "Taxa base de entrega".
+        </p>
+        <div class="grade-metricas">
+          <div class="cartao-metrica"><div class="valor" id="metrica-entrega-qtd">0</div><div class="rotulo">Entregas no período</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-entrega-bruta">R$ 0,00</div><div class="rotulo">Receita bruta de frete</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-entrega-repasse" style="color:var(--brasa);">R$ 0,00</div><div class="rotulo">Repasse a entregadores</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-entrega-liquida" style="color:var(--verde-brasa);">R$ 0,00</div><div class="rotulo">Receita líquida de entrega (fica com a casa)</div></div>
+        </div>
+        <p class="ajuda" id="aviso-taxa-entregador-incompleta" style="margin:10px 0 18px;" hidden>
+          ⚠️ Alguns pedidos de entrega desse período são anteriores à criação desse controle e não têm o
+          repasse ao entregador registrado — os valores acima podem estar um pouco abaixo do real para esses pedidos antigos.
         </p>
 
         <div class="grade-graficos-receita">

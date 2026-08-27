@@ -66,7 +66,7 @@
     // --- Cálculo de frete ---
     precoGasolina: 6.43,     // R$ por litro — atualize sempre que o preço mudar
     consumoKmLitro: 12,      // km rodados por litro (moto de entrega)
-    taxaBaseEntrega: 4.00,   // taxa fixa de saída, somada ao custo do combustível
+    taxaBaseEntrega: 4.00,   // taxa fixa que vai integralmente para o entregador (somada ao custo do combustível no cálculo do frete)
     // --- Acesso ao admin (mesma tela de identificação do cliente) ---
     emailAdmin: 'brunokawamurapessoal@gmail.com', // e-mail cadastrado como admin
     senhaAdmin: 'espeto123'  // TROQUE essa senha! (Admin > Configurações > Segurança)
@@ -1123,6 +1123,9 @@
       const subtotal = this.subtotal();
       const frete = this.tipoEntrega === 'delivery' ? (this.freteAtual || 0) : 0;
       const total = subtotal + frete;
+      // taxa fixa repassada ao entregador nessa venda — registrada aqui (e não calculada
+      // depois) pra que o valor não mude retroativamente se essa taxa for ajustada no futuro
+      const taxaEntregador = this.tipoEntrega === 'delivery' ? (cfg.taxaBaseEntrega || 0) : 0;
 
       // calcula o custo de cada item no momento da venda (via ficha técnica),
       // pra que o lucro histórico não mude depois se o custo do insumo for atualizado
@@ -1143,7 +1146,7 @@
         itens: itensComCusto,
         observacoesGerais: obsGerais,
         pagamento: { forma: formaPagamento, trocoPara },
-        subtotal, frete, total,
+        subtotal, frete, taxaEntregador, total,
         status: 'novo'
       };
 
@@ -1817,6 +1820,12 @@
       let custoTotalConhecido = 0;
       let temCustoDesconhecido = false;
 
+      // detalhamento específico da receita de entrega (frete)
+      let receitaFreteTotal = 0;         // total cobrado do cliente como frete
+      let repasseEntregadoresTotal = 0;  // total repassado aos entregadores (taxa fixa)
+      let temTaxaEntregadorDesconhecida = false; // pedidos antigos, anteriores a esse controle
+      let qtdEntregas = 0;
+
       pedidos.forEach(p => {
         const diaChave = p.dataHora.slice(0,10);
         if (!porDia[diaChave]) porDia[diaChave] = { faturamento:0, custo:0, lucro:0 };
@@ -1848,19 +1857,35 @@
         if (p.frete){
           faturamentoTotal += p.frete;
           porDia[diaChave].faturamento += p.frete;
+          qtdEntregas += 1;
+          receitaFreteTotal += p.frete;
+
+          if (p.taxaEntregador != null){
+            repasseEntregadoresTotal += p.taxaEntregador;
+            custoTotalConhecido += p.taxaEntregador;
+            porDia[diaChave].custo += p.taxaEntregador;
+          } else {
+            temTaxaEntregadorDesconhecida = true; // pedido feito antes desse controle existir
+          }
         }
         porDia[diaChave].lucro = porDia[diaChave].faturamento - porDia[diaChave].custo;
       });
 
       const lucroTotal = faturamentoTotal - custoTotalConhecido;
       const margemMedia = faturamentoTotal > 0 ? (lucroTotal / faturamentoTotal) * 100 : null;
+      const receitaFreteLiquida = receitaFreteTotal - repasseEntregadoresTotal;
 
       const ranking = Object.values(porProduto).map(p => {
         const lucro = p.faturamento - p.custo;
         return Object.assign({}, p, { lucro, margem: p.faturamento > 0 ? (lucro / p.faturamento) * 100 : null });
       }).sort((a,b) => b.lucro - a.lucro);
 
-      return { porDia, porProduto: ranking, faturamentoTotal, custoTotalConhecido, lucroTotal, margemMedia, temCustoDesconhecido };
+      return {
+        porDia, porProduto: ranking, faturamentoTotal, custoTotalConhecido, lucroTotal, margemMedia, temCustoDesconhecido,
+        entrega: {
+          qtdEntregas, receitaFreteTotal, repasseEntregadoresTotal, receitaFreteLiquida, temTaxaEntregadorDesconhecida
+        }
+      };
     },
 
     renderizarReceitaPainel(){
@@ -1878,6 +1903,12 @@
       $('#metrica-receita-lucro').textContent = formatarMoeda(dados.lucroTotal);
       $('#metrica-receita-margem').textContent = dados.margemMedia != null ? formatarNumero(dados.margemMedia) + '%' : '—';
       $('#aviso-custo-incompleto').hidden = !dados.temCustoDesconhecido;
+
+      $('#metrica-entrega-qtd').textContent = dados.entrega.qtdEntregas;
+      $('#metrica-entrega-bruta').textContent = formatarMoeda(dados.entrega.receitaFreteTotal);
+      $('#metrica-entrega-repasse').textContent = formatarMoeda(dados.entrega.repasseEntregadoresTotal);
+      $('#metrica-entrega-liquida').textContent = formatarMoeda(dados.entrega.receitaFreteLiquida);
+      $('#aviso-taxa-entregador-incompleta').hidden = !dados.entrega.temTaxaEntregadorDesconhecida;
 
       const diasOrdenados = Object.keys(dados.porDia).sort();
       this.renderizarGraficoEvolucao(diasOrdenados, dados.porDia);
