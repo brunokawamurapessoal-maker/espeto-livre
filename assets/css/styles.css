@@ -642,6 +642,7 @@ body.trava-scroll{ overflow:hidden; height:100%; }
   padding:11px 12px; border-radius: var(--raio-pequeno); font-size:.9rem; font-weight:600;
   display:flex; align-items:center; gap:10px;
 }
+.lateral-admin nav button[hidden]{ display:none; }
 .lateral-admin nav button:hover{ background: var(--carvao-3); color:var(--creme); }
 .lateral-admin nav button.ativa{ background: var(--brasa); color:var(--creme); }
 .sair-admin{ margin-top:auto; background:none; border:1px solid var(--linha); color: var(--fumaca); padding:10px; border-radius: var(--raio-pequeno); font-size:.85rem; }
@@ -712,6 +713,8 @@ body.trava-scroll{ overflow:hidden; height:100%; }
 .selo-status.preparando{ background: rgba(217,164,65,.15); color: var(--alerta); }
 .selo-status.pronto{ background: rgba(124,154,99,.15); color: var(--verde-brasa); }
 .selo-status.entregue{ background: rgba(168,154,138,.15); color: var(--fumaca); }
+.selo-status.estornado{ background: rgba(201,70,42,.18); color: var(--brasa); }
+.selo-status.cancelado{ background: rgba(201,70,42,.15); color: var(--brasa); }
 
 .chave-valor{ display:flex; align-items:center; gap:6px; cursor:pointer; }
 .chave-valor input[type=checkbox]{ display:none; }
@@ -743,11 +746,217 @@ input:checked + .interruptor::after{ transform: translateX(16px); background: va
 
 .acoes-backup{ display:flex; gap:10px; flex-wrap:wrap; }
 
+/* ==========================================================================
+   Esteira de Pedidos (kanban)
+   ========================================================================== */
+.quadro-esteira{
+  display:grid; grid-template-columns: repeat(4, 1fr); gap:14px;
+  align-items:start;
+}
+@media (max-width: 1100px){ .quadro-esteira{ grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px){ .quadro-esteira{ grid-template-columns: 1fr; } }
+.coluna-esteira{
+  background: var(--carvao-2); border:1px solid var(--linha); border-radius: var(--raio);
+  padding:12px; min-height:120px;
+}
+.cabecalho-coluna-esteira{
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:.86rem; font-weight:700; color:var(--creme); padding:4px 6px 12px;
+}
+.contagem-coluna{
+  background: var(--carvao-3); color:var(--fumaca); font-size:.72rem; font-weight:700;
+  padding:2px 8px; border-radius:999px;
+}
+.cartoes-coluna{ display:flex; flex-direction:column; gap:10px; }
+.cartao-esteira{
+  background: var(--carvao-1); border:1px solid var(--linha); border-radius: var(--raio-pequeno);
+  padding:12px 13px;
+}
+.cartao-esteira .topo-cartao-esteira{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+.cartao-esteira .numero-pedido-esteira{ font-weight:700; font-size:.88rem; color:var(--creme); }
+.cartao-esteira .valor-pedido-esteira{ font-size:.82rem; color: var(--labareda-suave); font-weight:700; }
+.cartao-esteira .cliente-cartao-esteira{ font-size:.82rem; color:var(--creme-fraco); margin-bottom:2px; }
+.cartao-esteira .meta-cartao-esteira{ font-size:.74rem; color:var(--fumaca); margin-bottom:6px; }
+.acoes-cartao-esteira{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.acoes-cartao-esteira select{
+  flex:1; min-width:110px; background: var(--carvao-3); border:1px solid var(--linha); color:var(--creme);
+  border-radius: var(--raio-pequeno); padding:6px 8px; font-size:.76rem;
+}
+.btn-avancar-status{
+  background: var(--carvao-3); border:1px solid var(--linha); color:var(--creme);
+  border-radius: var(--raio-pequeno); padding:6px 10px; font-size:.74rem; font-weight:600;
+}
+.btn-avancar-status:hover{ border-color: var(--verde-brasa); color: var(--verde-brasa); }
+.btn-estornar-pedido{
+  background:none; border:1px solid rgba(201,70,42,.4); color: var(--brasa);
+  border-radius: var(--raio-pequeno); padding:6px 10px; font-size:.74rem; font-weight:600;
+}
+.btn-estornar-pedido:hover{ background: rgba(201,70,42,.12); }
+.btn-estornar-pedido:disabled{ opacity:.4; cursor:not-allowed; }
+.tag-estornado-esteira{ font-size:.7rem; color:var(--brasa); font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.vazio-coluna-esteira{ text-align:center; color:var(--fumaca-escura); font-size:.78rem; padding:20px 6px; }
+
+/* ==========================================================================
+   Funcionários / perfis de acesso
+   ========================================================================== */
+.grade-perfis-info{ display:grid; grid-template-columns: repeat(3,1fr); gap:14px; margin-bottom:22px; }
+@media (max-width: 820px){ .grade-perfis-info{ grid-template-columns:1fr; } }
+.cartao-perfil-info{ background: var(--carvao-2); border:1px solid var(--linha); border-radius: var(--raio-pequeno); padding:16px; }
+.cartao-perfil-info strong{ display:block; font-size:.92rem; color:var(--creme); margin-bottom:6px; }
+.cartao-perfil-info p{ font-size:.8rem; color:var(--fumaca); line-height:1.4; }
+
+.seletor-perfil{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; }
+@media (max-width:560px){ .seletor-perfil{ grid-template-columns:1fr; } }
+.opcao-perfil{
+  background: var(--carvao-1); border:1px solid var(--linha); border-radius: var(--raio-pequeno);
+  padding:12px; text-align:left; color:var(--fumaca);
+}
+.opcao-perfil strong{ display:block; color:var(--creme); font-size:.9rem; margin-bottom:2px; }
+.opcao-perfil span{ font-size:.74rem; }
+.opcao-perfil.selecionada{ border-color: var(--brasa); background: rgba(201,70,42,.1); }
+.opcao-perfil.selecionada strong{ color: var(--labareda-suave); }
+
+.upload-foto-funcionario{ display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; }
+.preview-foto-funcionario{
+  width:84px; height:84px; border-radius:50%; background: var(--carvao-3); border:1px dashed var(--linha);
+  display:flex; align-items:center; justify-content:center; font-size:1.6rem; overflow:hidden; color:var(--fumaca);
+}
+.preview-foto-funcionario img{ width:100%; height:100%; object-fit:cover; }
+.upload-foto-funcionario span{ font-size:.78rem; color:var(--fumaca); text-align:center; }
+.upload-foto-funcionario .ajuda-pequena{ font-size:.68rem; color:var(--fumaca-escura); }
+.foto-mini-circular{ width:34px; height:34px; border-radius:50%; object-fit:cover; display:block; }
+.avatar-inicial{
+  width:34px; height:34px; border-radius:50%; background: var(--carvao-3); color:var(--fumaca);
+  display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:700;
+}
+.selo-perfil{ display:inline-flex; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+.selo-perfil.funcionario{ background: rgba(168,154,138,.15); color:var(--fumaca); }
+.selo-perfil.gestor{ background: rgba(232,142,63,.15); color: var(--labareda-suave); }
+.selo-perfil.admin{ background: rgba(124,154,99,.15); color: var(--verde-brasa); }
+
+/* ==========================================================================
+   Entregadores/Motoqueiros (cadastro + dados da moto + documentos)
+   ========================================================================== */
+.grade-uploads-documento{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px; }
+@media (max-width:560px){ .grade-uploads-documento{ grid-template-columns:1fr; } }
+.upload-documento{ display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; }
+.preview-documento{
+  width:100%; aspect-ratio: 4/3; border-radius: var(--raio-pequeno); background: var(--carvao-3);
+  border:1px dashed var(--linha); display:flex; align-items:center; justify-content:center;
+  font-size:1.8rem; color:var(--fumaca); overflow:hidden;
+}
+.preview-documento img{ width:100%; height:100%; object-fit:cover; }
+.upload-documento span{ font-size:.78rem; color:var(--fumaca); text-align:center; }
+
+/* ==========================================================================
+   Modal de confirmação do Admin (ações do Gestor)
+   ========================================================================== */
+.modal-confirmacao-admin .modal-caixa{ max-width:400px; text-align:center; }
+.modal-confirmacao-admin .icone-confirmacao{
+  width:52px; height:52px; border-radius:50%; background: rgba(232,142,63,.12); color:var(--labareda-suave);
+  display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px;
+}
+.modal-confirmacao-admin p.contexto-confirmacao{ color:var(--fumaca); font-size:.86rem; margin-bottom:18px; }
+
 .detalhe-pedido{ background: var(--carvao-1); border:1px solid var(--linha); border-radius: var(--raio-pequeno); padding:14px; margin-top:8px; font-size:.85rem; color: var(--fumaca); }
 .detalhe-pedido strong{ color: var(--creme); }
 
 .vazio-admin{ text-align:center; padding:60px 20px; color: var(--fumaca); }
 .vazio-admin .icone{ font-size:2.4rem; margin-bottom:12px; }
+
+/* ==========================================================================
+   Esteira de Pedidos (kanban)
+   ========================================================================== */
+.quadro-esteira{
+  display:grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap:16px;
+  overflow-x:auto; padding-bottom:8px;
+}
+@media (max-width: 980px){ .quadro-esteira{ grid-template-columns: repeat(4, 260px); } }
+.coluna-esteira{
+  background: var(--carvao-2); border-radius: var(--raio); padding:12px;
+  display:flex; flex-direction:column; min-height:120px;
+}
+.cabecalho-coluna-esteira{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 6px 12px; font-weight:700; font-size:.88rem; color:var(--creme);
+}
+.contagem-coluna{
+  background: var(--carvao-3); color:var(--fumaca); font-size:.72rem; font-weight:700;
+  min-width:22px; height:22px; padding:0 6px; border-radius:999px;
+  display:flex; align-items:center; justify-content:center;
+}
+.cartoes-coluna{ display:flex; flex-direction:column; gap:10px; }
+.cartao-esteira{
+  background: var(--carvao-1); border:1px solid var(--linha); border-radius: var(--raio-pequeno);
+  padding:12px 13px;
+}
+.topo-cartao-esteira{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+.topo-cartao-esteira strong{ color:var(--creme); font-size:.92rem; }
+.topo-cartao-esteira span{ color: var(--labareda-suave); font-weight:700; font-size:.84rem; }
+.cliente-cartao-esteira{ font-size:.86rem; color:var(--creme-fraco); font-weight:600; margin-bottom:3px; }
+.meta-cartao-esteira{ font-size:.74rem; color:var(--fumaca); margin-bottom:2px; }
+.acoes-cartao-esteira{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.btn-avancar-status{
+  background: var(--brasa); color:var(--creme); border:none; border-radius:999px;
+  padding:8px 10px; font-size:.78rem; font-weight:700;
+}
+.btn-avancar-status:hover{ background: var(--brasa-forte); }
+.btn-estornar-pedido{
+  background:none; border:1px solid var(--linha); color:var(--fumaca); border-radius:999px;
+  padding:7px 10px; font-size:.76rem; font-weight:600;
+}
+.btn-estornar-pedido:hover{ border-color:var(--brasa); color:var(--brasa); }
+
+/* ==========================================================================
+   Funcionários — cartões de perfil e formulário
+   ========================================================================== */
+.grade-perfis-info{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:22px; }
+@media (max-width: 780px){ .grade-perfis-info{ grid-template-columns:1fr; } }
+.cartao-perfil-info{
+  background: var(--carvao-2); border:1px solid var(--linha); border-radius: var(--raio-pequeno);
+  padding:16px 18px;
+}
+.cartao-perfil-info strong{ display:block; color:var(--labareda-suave); font-size:.92rem; margin-bottom:6px; }
+.cartao-perfil-info p{ color:var(--fumaca); font-size:.82rem; line-height:1.45; }
+
+.upload-foto-funcionario{ display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; text-align:center; }
+.preview-foto-funcionario{
+  width:88px; height:88px; border-radius:50%; overflow:hidden;
+  background: var(--carvao-3); border:1px dashed var(--linha);
+  display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:var(--fumaca);
+}
+.preview-foto-funcionario img{ width:100%; height:100%; object-fit:cover; }
+.upload-foto-funcionario span{ font-size:.78rem; color:var(--fumaca); }
+.upload-foto-funcionario .ajuda-pequena{ font-size:.7rem; color:var(--fumaca-escura); }
+
+.seletor-perfil{ display:flex; gap:10px; flex-wrap:wrap; }
+.opcao-perfil{
+  flex:1; min-width:120px; background: var(--carvao-1); border:1px solid var(--linha); border-radius: var(--raio-pequeno);
+  padding:11px 12px; text-align:left; color:var(--fumaca); transition: border-color .15s, background .15s;
+}
+.opcao-perfil strong{ display:block; color:var(--creme); font-size:.88rem; margin-bottom:2px; }
+.opcao-perfil span{ font-size:.74rem; }
+.opcao-perfil:hover{ border-color:var(--fumaca-escura); }
+.opcao-perfil.selecionada{ border-color: var(--brasa); background: rgba(201,70,42,.1); }
+.opcao-perfil.selecionada strong{ color: var(--labareda-suave); }
+
+/* ==========================================================================
+   Entregadores (motoqueiro) — upload de documentos
+   ========================================================================== */
+.grade-uploads-documento{ display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; margin-top:6px; }
+@media (max-width: 640px){ .grade-uploads-documento{ grid-template-columns:1fr; } }
+.upload-documento{
+  display:flex; align-items:center; gap:12px; cursor:pointer;
+  background: var(--carvao-1); border:1px dashed var(--linha); border-radius: var(--raio-pequeno);
+  padding:12px 14px;
+}
+.upload-documento:hover{ border-color: var(--labareda); }
+.upload-documento span{ font-size:.85rem; color:var(--creme-fraco); font-weight:500; }
+.preview-documento{
+  flex:0 0 auto; width:52px; height:52px; border-radius:10px; overflow:hidden;
+  background: var(--carvao-3); display:flex; align-items:center; justify-content:center; font-size:1.4rem;
+}
+.preview-documento img{ width:100%; height:100%; object-fit:cover; }
 
 /* ---- Responsivo geral do cabeçalho / nav ---- */
 @media (max-width: 860px){

@@ -233,7 +233,9 @@
     pedidos: 'espetolivre_pedidos',
     clientes: 'espetolivre_clientes',
     insumos: 'espetolivre_insumos',
-    fichasTecnicas: 'espetolivre_fichas_tecnicas'
+    fichasTecnicas: 'espetolivre_fichas_tecnicas',
+    funcionarios: 'espetolivre_funcionarios',
+    entregadores: 'espetolivre_entregadores'
   };
 
   function obter(chave, padrao){
@@ -304,6 +306,22 @@
     if (!localStorage.getItem(CHAVES.clientes)) salvar(CHAVES.clientes, {});
     if (!localStorage.getItem(CHAVES.insumos)) salvar(CHAVES.insumos, []);
     if (!localStorage.getItem(CHAVES.fichasTecnicas)) salvar(CHAVES.fichasTecnicas, {});
+    if (!localStorage.getItem(CHAVES.funcionarios)){
+      // primeiro acesso ao novo sistema de funcionários: cria automaticamente
+      // um cadastro de Admin usando o e-mail/senha que já estavam configurados,
+      // pra ninguém ficar trancado pra fora do painel depois dessa atualização.
+      const cfgAtual = obter(CHAVES.config, CONFIG_PADRAO);
+      salvar(CHAVES.funcionarios, [{
+        id: gerarId('func'),
+        nome: 'Administrador',
+        email: cfgAtual.emailAdmin || CONFIG_PADRAO.emailAdmin,
+        senha: cfgAtual.senhaAdmin || CONFIG_PADRAO.senhaAdmin,
+        perfil: 'admin',
+        ativo: true,
+        foto: null
+      }]);
+    }
+    if (!localStorage.getItem(CHAVES.entregadores)) salvar(CHAVES.entregadores, []);
   }
 
   const Dados = {
@@ -320,7 +338,11 @@
     getInsumos: () => obter(CHAVES.insumos, []),
     salvarInsumos: (lista) => salvar(CHAVES.insumos, lista),
     getFichasTecnicas: () => obter(CHAVES.fichasTecnicas, {}),
-    salvarFichasTecnicas: (obj) => salvar(CHAVES.fichasTecnicas, obj)
+    salvarFichasTecnicas: (obj) => salvar(CHAVES.fichasTecnicas, obj),
+    getFuncionarios: () => obter(CHAVES.funcionarios, []),
+    salvarFuncionarios: (lista) => salvar(CHAVES.funcionarios, lista),
+    getEntregadores: () => obter(CHAVES.entregadores, []),
+    salvarEntregadores: (lista) => salvar(CHAVES.entregadores, lista)
   };
 
   /* ========================================================================
@@ -530,6 +552,30 @@
      o cadastro persistido do cliente (que pode ter endereço salvo de pedidos
      ou edições anteriores no perfil). O cadastro persistido tem prioridade
      nos campos extras, já que é a fonte mais completa/atualizada. */
+  /* ---- Funcionários / controle de acesso do admin ---- */
+  function encontrarFuncionarioPorEmail(email){
+    email = (email || '').trim().toLowerCase();
+    if (!email) return null;
+    return Dados.getFuncionarios().find(f => f.ativo && f.email.toLowerCase() === email) || null;
+  }
+
+  function obterSessaoAdmin(){
+    try{
+      const bruto = sessionStorage.getItem('espetolivre_admin_sessao');
+      return bruto ? JSON.parse(bruto) : null;
+    }catch(e){ return null; }
+  }
+
+  function iniciarSessaoAdmin(funcionario){
+    sessionStorage.setItem('espetolivre_admin_sessao', JSON.stringify({
+      id: funcionario.id, nome: funcionario.nome, email: funcionario.email, perfil: funcionario.perfil
+    }));
+  }
+
+  function rotuloPerfil(perfil){
+    return { funcionario: 'Funcionário', gestor: 'Gestor', admin: 'Admin' }[perfil] || perfil;
+  }
+
   function obterIdentificacaoAtual(){
     try{
       const bruto = sessionStorage.getItem('espetolivre_identificacao');
@@ -694,27 +740,26 @@
       const legenda = $('#legenda-identificacao');
 
       const verificarModoAdmin = () => {
-        const cfg = Dados.getConfig();
         const email = (campoEmail?.value || '').trim().toLowerCase();
-        const ehAdmin = !!email && email === (cfg.emailAdmin || '').toLowerCase();
+        const funcionario = encontrarFuncionarioPorEmail(email);
+        const ehAdmin = !!funcionario;
         if (blocoSenha) blocoSenha.hidden = !ehAdmin;
         if (campoTelefone) campoTelefone.required = !ehAdmin;
         if (btnEnviar) btnEnviar.textContent = ehAdmin ? 'Entrar no admin 🔐' : 'Começar meu pedido 🍢';
         if (legenda) legenda.textContent = ehAdmin
-          ? 'E-mail de administrador reconhecido — informe sua senha para entrar no painel.'
+          ? `E-mail de ${rotuloPerfil(funcionario.perfil).toLowerCase()} reconhecido — informe sua senha para entrar no painel.`
           : 'Antes de montar seu pedido, precisamos do seu nome — é ele que vai ser chamado no balcão na hora da retirada ou entrega.';
-        return ehAdmin;
+        return funcionario;
       };
 
       campoEmail?.addEventListener('input', verificarModoAdmin);
 
       form?.addEventListener('submit', (e) => {
         e.preventDefault();
-        const cfg = Dados.getConfig();
         const nome = $('#campo-id-nome').value.trim();
         const email = (campoEmail?.value || '').trim();
         const erro = $('#erro-identificacao');
-        const ehAdmin = verificarModoAdmin();
+        const funcionario = verificarModoAdmin();
 
         if (nome.length < 2){
           erro.textContent = 'Preencha seu nome.';
@@ -722,15 +767,15 @@
           return;
         }
 
-        if (ehAdmin){
+        if (funcionario){
           const senha = campoSenha.value;
-          if (senha !== cfg.senhaAdmin){
+          if (senha !== funcionario.senha){
             erro.textContent = 'Senha incorreta. Tente novamente.';
             erro.classList.add('visivel');
             return;
           }
           erro.classList.remove('visivel');
-          sessionStorage.setItem('espetolivre_admin_logado', '1');
+          iniciarSessaoAdmin(funcionario);
           window.location.href = 'pages/admin.html';
           return;
         }
@@ -1395,16 +1440,23 @@
     periodoReceita: '7dias',
     produtoFichaSelecionado: null,
     editandoInsumoId: null,
+    editandoFuncionarioId: null,
     formInsumoLigado: false,
     formFichaLigado: false,
+    formFuncionarioLigado: false,
     receitaSubNavLigado: false,
+    esteiraLigada: false,
     graficoEvolucao: null,
     graficoProdutos: null,
+    sessao: null,
+    fotoFuncionarioAtual: null,
 
     iniciar(){
       if (!$('#app-admin')) return;
       this.ligarLogin();
-      if (sessionStorage.getItem('espetolivre_admin_logado') === '1'){
+      const sessao = obterSessaoAdmin();
+      if (sessao){
+        this.sessao = sessao;
         this.entrar();
       }
     },
@@ -1413,11 +1465,12 @@
       const form = $('#form-login-admin');
       form?.addEventListener('submit', (e) => {
         e.preventDefault();
-        const email = $('#campo-email-admin').value.trim().toLowerCase();
+        const email = $('#campo-email-admin').value.trim();
         const senha = $('#campo-senha-admin').value;
-        const cfg = Dados.getConfig();
-        if (email === (cfg.emailAdmin || '').toLowerCase() && senha === cfg.senhaAdmin){
-          sessionStorage.setItem('espetolivre_admin_logado', '1');
+        const funcionario = encontrarFuncionarioPorEmail(email);
+        if (funcionario && senha === funcionario.senha){
+          iniciarSessaoAdmin(funcionario);
+          this.sessao = obterSessaoAdmin();
           this.entrar();
         } else {
           $('#erro-login-admin').classList.add('visivel');
@@ -1430,18 +1483,41 @@
       $('#app-admin').classList.add('visivel');
       this.ligarNavegacao();
       this.ligarSair();
+      this.ligarModalAutorizacao();
+      this.aplicarPermissoesNav();
       this.renderizarPainel();
+      this.renderizarEsteira();
       this.renderizarCardapio();
       this.renderizarPedidos();
       this.renderizarEntrega();
       this.renderizarReceita();
+      this.renderizarFuncionarios();
       this.renderizarConfiguracoes();
-      this.mostrarAba('painel');
+      this.mostrarAba(this.sessao?.perfil === 'funcionario' ? 'esteira' : 'painel');
+    },
+
+    /* Funcionário só vê a Esteira de Pedidos. Gestor e Admin veem tudo, mas só
+       Gestor/Admin acessam o cadastro de Funcionários. */
+    aplicarPermissoesNav(){
+      const perfil = this.sessao?.perfil;
+      const somenteEsteira = perfil === 'funcionario';
+      $$('.lateral-admin nav button').forEach(btn => {
+        const aba = btn.dataset.aba;
+        if (somenteEsteira){
+          btn.hidden = aba !== 'esteira';
+        } else if (aba === 'funcionarios'){
+          btn.hidden = !(perfil === 'gestor' || perfil === 'admin');
+        } else {
+          btn.hidden = false;
+        }
+      });
+      const nomeEl = $('#nome-usuario-admin');
+      if (nomeEl && this.sessao) nomeEl.textContent = `${this.sessao.nome} · ${rotuloPerfil(this.sessao.perfil)}`;
     },
 
     ligarSair(){
       $('#btn-sair-admin')?.addEventListener('click', () => {
-        sessionStorage.removeItem('espetolivre_admin_logado');
+        sessionStorage.removeItem('espetolivre_admin_sessao');
         window.location.reload();
       });
     },
@@ -1459,6 +1535,7 @@
       // os gráficos da Receita são criados com o canvas ainda escondido (display:none)
       // e ficam com tamanho zero — recria-los aqui, já com a aba visível, resolve isso.
       if (aba === 'receita') this.renderizarReceitaPainel();
+      if (aba === 'esteira') this.renderizarEsteira();
     },
 
     /* ---- Painel (métricas rápidas) ---- */
@@ -1520,17 +1597,23 @@
         </tr>`).join('') : `<tr><td colspan="6"><div class="vazio-admin"><div class="icone">🍢</div>Nenhum produto encontrado.</div></td></tr>`;
 
       $$('.toggle-disponivel', tbody).forEach(chk => chk.addEventListener('change', () => {
-        const lista = Dados.getProdutos();
-        const item = lista.find(p => p.id === chk.dataset.id);
-        if (item){ item.disponivel = chk.checked; Dados.salvarProdutos(lista); mostrarToast(item.disponivel ? 'Produto disponível' : 'Produto marcado como indisponível'); this.renderizarPainel(); }
+        const novoValor = chk.checked;
+        chk.checked = !novoValor; // volta ao estado anterior até a autorização ser confirmada
+        this.executarComAutorizacao('Alterar a disponibilidade de um produto.', () => {
+          const lista = Dados.getProdutos();
+          const item = lista.find(p => p.id === chk.dataset.id);
+          if (item){ item.disponivel = novoValor; Dados.salvarProdutos(lista); mostrarToast(item.disponivel ? 'Produto disponível' : 'Produto marcado como indisponível'); this.renderizarPainel(); this.renderizarCardapio(); }
+        });
       }));
       $$('.btn-editar-produto', tbody).forEach(btn => btn.addEventListener('click', () => this.abrirFormProduto(btn.dataset.id)));
       $$('.btn-excluir-produto', tbody).forEach(btn => btn.addEventListener('click', () => {
         if (!confirm('Excluir este produto do cardápio?')) return;
-        const lista = Dados.getProdutos().filter(p => p.id !== btn.dataset.id);
-        Dados.salvarProdutos(lista);
-        this.renderizarCardapio(); this.renderizarPainel();
-        mostrarToast('Produto excluído.');
+        this.executarComAutorizacao('Excluir um produto do cardápio.', () => {
+          const lista = Dados.getProdutos().filter(p => p.id !== btn.dataset.id);
+          Dados.salvarProdutos(lista);
+          this.renderizarCardapio(); this.renderizarPainel();
+          mostrarToast('Produto excluído.');
+        });
       }));
 
       // liga os listeners estáticos do formulário só uma vez (renderizarCardapio
@@ -1625,18 +1708,20 @@
         mostrarToast('Preencha nome e um preço válido.');
         return;
       }
-      const lista = Dados.getProdutos();
-      if (this.editandoProdutoId){
-        const item = lista.find(p=>p.id===this.editandoProdutoId);
-        Object.assign(item, dados);
-      } else {
-        lista.push(Object.assign({ id: gerarId('prod') }, dados));
-      }
-      Dados.salvarProdutos(lista);
-      this.fecharFormProduto();
-      this.renderizarCardapio();
-      this.renderizarPainel();
-      mostrarToast('Cardápio atualizado!');
+      this.executarComAutorizacao('Salvar alterações no cardápio.', () => {
+        const lista = Dados.getProdutos();
+        if (this.editandoProdutoId){
+          const item = lista.find(p=>p.id===this.editandoProdutoId);
+          Object.assign(item, dados);
+        } else {
+          lista.push(Object.assign({ id: gerarId('prod') }, dados));
+        }
+        Dados.salvarProdutos(lista);
+        this.fecharFormProduto();
+        this.renderizarCardapio();
+        this.renderizarPainel();
+        mostrarToast('Cardápio atualizado!');
+      });
     },
 
     /* ---- Pedidos ---- */
@@ -1717,9 +1802,11 @@
       $$('.btn-editar-bairro', tbody).forEach(btn => btn.addEventListener('click', () => this.abrirFormBairro(btn.dataset.id)));
       $$('.btn-excluir-bairro', tbody).forEach(btn => btn.addEventListener('click', () => {
         if (!confirm('Remover este bairro da área de entrega?')) return;
-        Dados.salvarBairros(Dados.getBairros().filter(b=>b.id!==btn.dataset.id));
-        this.renderizarEntrega();
-        mostrarToast('Bairro removido.');
+        this.executarComAutorizacao('Remover um bairro da área de entrega.', () => {
+          Dados.salvarBairros(Dados.getBairros().filter(b=>b.id!==btn.dataset.id));
+          this.renderizarEntrega();
+          mostrarToast('Bairro removido.');
+        });
       }));
 
       $('#campo-preco-gasolina').value = cfg.precoGasolina;
@@ -1728,18 +1815,25 @@
 
       $('#form-parametros-frete')?.addEventListener('submit', (e) => {
         e.preventDefault();
-        const cfgAtual = Dados.getConfig();
-        cfgAtual.precoGasolina = parseFloat($('#campo-preco-gasolina').value) || 0;
-        cfgAtual.consumoKmLitro = parseFloat($('#campo-consumo-km').value) || 1;
-        cfgAtual.taxaBaseEntrega = parseFloat($('#campo-taxa-base').value) || 0;
-        Dados.salvarConfig(cfgAtual);
-        this.renderizarEntrega();
-        mostrarToast('Parâmetros de frete atualizados!');
+        const precoGasolina = parseFloat($('#campo-preco-gasolina').value) || 0;
+        const consumoKmLitro = parseFloat($('#campo-consumo-km').value) || 1;
+        const taxaBaseEntrega = parseFloat($('#campo-taxa-base').value) || 0;
+        this.executarComAutorizacao('Alterar os parâmetros de cálculo do frete.', () => {
+          const cfgAtual = Dados.getConfig();
+          cfgAtual.precoGasolina = precoGasolina;
+          cfgAtual.consumoKmLitro = consumoKmLitro;
+          cfgAtual.taxaBaseEntrega = taxaBaseEntrega;
+          Dados.salvarConfig(cfgAtual);
+          this.renderizarEntrega();
+          mostrarToast('Parâmetros de frete atualizados!');
+        });
       });
 
       $('#btn-novo-bairro')?.addEventListener('click', () => this.abrirFormBairro(null));
       $('#form-bairro')?.addEventListener('submit', (e) => this.salvarFormBairro(e));
       $('#btn-cancelar-bairro')?.addEventListener('click', () => { $('#painel-form-bairro').hidden = true; });
+
+      this.renderizarEntregadores();
     },
 
     abrirFormBairro(id){
@@ -1759,17 +1853,19 @@
       const nome = $('#campo-bairro-nome').value.trim();
       const distanciaKm = parseFloat($('#campo-bairro-distancia').value);
       if (!nome || !(distanciaKm > 0)){ mostrarToast('Informe o bairro e uma distância válida.'); return; }
-      const lista = Dados.getBairros();
-      if (this.editandoBairroId){
-        const item = lista.find(b=>b.id===this.editandoBairroId);
-        item.nome = nome; item.distanciaKm = distanciaKm;
-      } else {
-        lista.push({ id: gerarId('bai'), nome, distanciaKm });
-      }
-      Dados.salvarBairros(lista);
-      $('#painel-form-bairro').hidden = true;
-      this.renderizarEntrega();
-      mostrarToast('Bairro salvo!');
+      this.executarComAutorizacao('Salvar um bairro da área de entrega.', () => {
+        const lista = Dados.getBairros();
+        if (this.editandoBairroId){
+          const item = lista.find(b=>b.id===this.editandoBairroId);
+          item.nome = nome; item.distanciaKm = distanciaKm;
+        } else {
+          lista.push({ id: gerarId('bai'), nome, distanciaKm });
+        }
+        Dados.salvarBairros(lista);
+        $('#painel-form-bairro').hidden = true;
+        this.renderizarEntrega();
+        mostrarToast('Bairro salvo!');
+      });
     },
 
     /* ==== RECEITA ==== */
@@ -1826,7 +1922,19 @@
       let temTaxaEntregadorDesconhecida = false; // pedidos antigos, anteriores a esse controle
       let qtdEntregas = 0;
 
+      // estornos: o dinheiro volta pro cliente na maquininha (fora do nosso controle).
+      // Pedidos estornados são contados só aqui — não entram no faturamento/custo/lucro
+      // normal, pra não inflar (nem inconsistir) os outros números do painel.
+      let valorEstornadoTotal = 0;
+      let qtdEstornos = 0;
+
       pedidos.forEach(p => {
+        if (p.estornado){
+          valorEstornadoTotal += p.valorEstornado != null ? p.valorEstornado : p.total;
+          qtdEstornos += 1;
+          return; // não conta no faturamento/custo/lucro normal — só no indicador de estorno
+        }
+
         const diaChave = p.dataHora.slice(0,10);
         if (!porDia[diaChave]) porDia[diaChave] = { faturamento:0, custo:0, lucro:0 };
 
@@ -1884,14 +1992,17 @@
         porDia, porProduto: ranking, faturamentoTotal, custoTotalConhecido, lucroTotal, margemMedia, temCustoDesconhecido,
         entrega: {
           qtdEntregas, receitaFreteTotal, repasseEntregadoresTotal, receitaFreteLiquida, temTaxaEntregadorDesconhecida
-        }
+        },
+        estornos: { qtdEstornos, valorEstornadoTotal }
       };
     },
 
     renderizarReceitaPainel(){
       const { inicio, fim } = this.obterIntervaloPeriodo(this.periodoReceita);
       const pedidos = Dados.getPedidos().filter(p => {
-        if (p.status === 'cancelado') return false;
+        // cancelamento comum (nunca virou venda) não entra em nada financeiro;
+        // já um pedido estornado precisa entrar, pra aparecer no indicador de estorno
+        if (p.status === 'cancelado' && !p.estornado) return false;
         const d = new Date(p.dataHora);
         return d >= inicio && d <= fim;
       });
@@ -1909,6 +2020,9 @@
       $('#metrica-entrega-repasse').textContent = formatarMoeda(dados.entrega.repasseEntregadoresTotal);
       $('#metrica-entrega-liquida').textContent = formatarMoeda(dados.entrega.receitaFreteLiquida);
       $('#aviso-taxa-entregador-incompleta').hidden = !dados.entrega.temTaxaEntregadorDesconhecida;
+
+      $('#metrica-estornos-qtd').textContent = dados.estornos.qtdEstornos;
+      $('#metrica-estornos-valor').textContent = formatarMoeda(dados.estornos.valorEstornadoTotal);
 
       const diasOrdenados = Object.keys(dados.porDia).sort();
       this.renderizarGraficoEvolucao(diasOrdenados, dados.porDia);
@@ -2001,15 +2115,17 @@
       $$('.btn-editar-insumo', tbody).forEach(btn => btn.addEventListener('click', () => this.abrirFormInsumo(btn.dataset.id)));
       $$('.btn-excluir-insumo', tbody).forEach(btn => btn.addEventListener('click', () => {
         if (!confirm('Excluir este insumo? Ele também será removido de todas as fichas técnicas que o usam.')) return;
-        Dados.salvarInsumos(Dados.getInsumos().filter(i => i.id !== btn.dataset.id));
-        const fichas = Dados.getFichasTecnicas();
-        Object.keys(fichas).forEach(produtoId => {
-          fichas[produtoId] = fichas[produtoId].filter(item => item.insumoId !== btn.dataset.id);
+        this.executarComAutorizacao('Excluir um insumo.', () => {
+          Dados.salvarInsumos(Dados.getInsumos().filter(i => i.id !== btn.dataset.id));
+          const fichas = Dados.getFichasTecnicas();
+          Object.keys(fichas).forEach(produtoId => {
+            fichas[produtoId] = fichas[produtoId].filter(item => item.insumoId !== btn.dataset.id);
+          });
+          Dados.salvarFichasTecnicas(fichas);
+          this.renderizarInsumos();
+          this.atualizarSelectsFicha();
+          mostrarToast('Insumo excluído.');
         });
-        Dados.salvarFichasTecnicas(fichas);
-        this.renderizarInsumos();
-        this.atualizarSelectsFicha();
-        mostrarToast('Insumo excluído.');
       }));
 
       if (!this.formInsumoLigado){
@@ -2052,17 +2168,19 @@
         estoqueMinimo: parseFloat($('#campo-insumo-estoque-minimo').value) || 0
       };
       if (!dados.nome){ mostrarToast('Informe o nome do insumo.'); return; }
-      const lista = Dados.getInsumos();
-      if (this.editandoInsumoId){
-        Object.assign(lista.find(i=>i.id===this.editandoInsumoId), dados);
-      } else {
-        lista.push(Object.assign({ id: gerarId('insumo') }, dados));
-      }
-      Dados.salvarInsumos(lista);
-      this.fecharFormInsumo();
-      this.renderizarInsumos();
-      this.atualizarSelectsFicha();
-      mostrarToast('Insumo salvo!');
+      this.executarComAutorizacao('Salvar dados de um insumo.', () => {
+        const lista = Dados.getInsumos();
+        if (this.editandoInsumoId){
+          Object.assign(lista.find(i=>i.id===this.editandoInsumoId), dados);
+        } else {
+          lista.push(Object.assign({ id: gerarId('insumo') }, dados));
+        }
+        Dados.salvarInsumos(lista);
+        this.fecharFormInsumo();
+        this.renderizarInsumos();
+        this.atualizarSelectsFicha();
+        mostrarToast('Insumo salvo!');
+      });
     },
 
     /* ---- Fichas técnicas ---- */
@@ -2124,10 +2242,12 @@
 
       $$('.remover-item-ficha', lista).forEach(btn => btn.addEventListener('click', () => {
         const idx = Number(btn.dataset.idx);
-        const fichasAtuais = Dados.getFichasTecnicas();
-        fichasAtuais[produtoId].splice(idx, 1);
-        Dados.salvarFichasTecnicas(fichasAtuais);
-        this.renderizarListaFicha();
+        this.executarComAutorizacao('Remover um insumo de uma ficha técnica.', () => {
+          const fichasAtuais = Dados.getFichasTecnicas();
+          fichasAtuais[produtoId].splice(idx, 1);
+          Dados.salvarFichasTecnicas(fichasAtuais);
+          this.renderizarListaFicha();
+        });
       }));
 
       const custoTotal = calcularCustoProduto(produtoId, fichas, insumos) || 0;
@@ -2150,19 +2270,405 @@
       const quantidade = parseFloat($('#campo-ficha-quantidade').value);
       if (!insumoId || !(quantidade > 0)){ mostrarToast('Selecione o insumo e informe uma quantidade válida.'); return; }
 
-      const fichas = Dados.getFichasTecnicas();
-      if (!fichas[produtoId]) fichas[produtoId] = [];
-      const existente = fichas[produtoId].find(item => item.insumoId === insumoId);
-      if (existente){
-        existente.quantidade = quantidade;
+      this.executarComAutorizacao('Adicionar um insumo a uma ficha técnica.', () => {
+        const fichas = Dados.getFichasTecnicas();
+        if (!fichas[produtoId]) fichas[produtoId] = [];
+        const existente = fichas[produtoId].find(item => item.insumoId === insumoId);
+        if (existente){
+          existente.quantidade = quantidade;
+        } else {
+          fichas[produtoId].push({ insumoId, quantidade });
+        }
+        Dados.salvarFichasTecnicas(fichas);
+        $('#campo-ficha-insumo').value = '';
+        $('#campo-ficha-quantidade').value = '';
+        this.renderizarListaFicha();
+        mostrarToast('Insumo adicionado à ficha técnica!');
+      });
+    },
+
+    /* ---- Autorização do gestor (qualquer alteração precisa da senha de um admin) ---- */
+    ligarModalAutorizacao(){
+      if (this._modalAutorizacaoLigado) return;
+      this._modalAutorizacaoLigado = true;
+      $('#btn-fechar-autorizacao')?.addEventListener('click', () => this.fecharModalAutorizacao());
+      $('#modal-autorizacao-admin')?.addEventListener('click', (e) => {
+        if (e.target.id === 'modal-autorizacao-admin') this.fecharModalAutorizacao();
+      });
+      $('#btn-confirmar-autorizacao')?.addEventListener('click', () => {
+        const senha = $('#campo-senha-autorizacao').value;
+        const admins = Dados.getFuncionarios().filter(f => f.ativo && f.perfil === 'admin');
+        const autorizado = admins.some(a => a.senha === senha);
+        if (!autorizado){
+          $('#erro-autorizacao').classList.add('visivel');
+          return;
+        }
+        const acao = this.autorizacaoPendente;
+        this.fecharModalAutorizacao();
+        if (acao) acao();
+      });
+    },
+
+    abrirModalAutorizacao(descricao, callback){
+      this.autorizacaoPendente = callback;
+      $('#texto-autorizacao').textContent = descricao || 'Essa alteração precisa da senha de um administrador.';
+      $('#campo-senha-autorizacao').value = '';
+      $('#erro-autorizacao').classList.remove('visivel');
+      $('#modal-autorizacao-admin')?.classList.add('aberto');
+      setTimeout(() => $('#campo-senha-autorizacao')?.focus(), 150);
+    },
+
+    fecharModalAutorizacao(){
+      $('#modal-autorizacao-admin')?.classList.remove('aberto');
+      this.autorizacaoPendente = null;
+    },
+
+    /* Executa `callback` na hora se for Admin. Se for Gestor, primeiro pede a
+       senha de um Admin ativo. Use em toda ação que grava/exclui dados. */
+    executarComAutorizacao(descricao, callback){
+      if (this.sessao?.perfil === 'admin'){
+        callback();
       } else {
-        fichas[produtoId].push({ insumoId, quantidade });
+        this.abrirModalAutorizacao(descricao, callback);
       }
-      Dados.salvarFichasTecnicas(fichas);
-      $('#campo-ficha-insumo').value = '';
-      $('#campo-ficha-quantidade').value = '';
-      this.renderizarListaFicha();
-      mostrarToast('Insumo adicionado à ficha técnica!');
+    },
+
+    /* ---- Esteira de Pedidos (kanban com busca) ---- */
+    renderizarEsteira(){
+      if (!$('#quadro-esteira')) return;
+      this.ligarModalAutorizacao();
+
+      if (!this.esteiraLigada){
+        this.esteiraLigada = true;
+        $('#busca-esteira')?.addEventListener('input', () => this.renderizarQuadroEsteira());
+      }
+      this.renderizarQuadroEsteira();
+    },
+
+    renderizarQuadroEsteira(){
+      const termo = ($('#busca-esteira')?.value || '').trim().toLowerCase();
+      let pedidos = Dados.getPedidos().filter(p => !p.estornado);
+
+      if (termo){
+        pedidos = pedidos.filter(p =>
+          p.cliente.nome.toLowerCase().includes(termo) ||
+          somenteDigitos(p.cliente.telefone).includes(somenteDigitos(termo)) ||
+          (p.cliente.email || '').toLowerCase().includes(termo) ||
+          String(p.numero).includes(termo)
+        );
+      }
+
+      const statusColunas = ['novo', 'preparando', 'pronto', 'entregue'];
+      statusColunas.forEach(status => {
+        const doStatus = pedidos.filter(p => p.status === status).sort((a,b) => new Date(b.dataHora) - new Date(a.dataHora));
+        $(`#contagem-${status}`).textContent = doStatus.length;
+        const container = $(`#coluna-cartoes-${status}`);
+        container.innerHTML = doStatus.length ? doStatus.map(p => this.cartaoEsteira(p, status)).join('') :
+          `<p style="color:var(--fumaca); font-size:.8rem; text-align:center; padding:20px 8px;">Nada por aqui.</p>`;
+      });
+
+      $$('.btn-avancar-status').forEach(btn => btn.addEventListener('click', () => {
+        this.avancarStatusPedido(btn.dataset.id, btn.dataset.proximo);
+      }));
+      $$('.btn-estornar-pedido').forEach(btn => btn.addEventListener('click', () => {
+        this.estornarPedido(btn.dataset.id);
+      }));
+    },
+
+    cartaoEsteira(p, statusAtual){
+      const proximos = { novo:'preparando', preparando:'pronto', pronto:'entregue' };
+      const proximo = proximos[statusAtual];
+      const rotulosProximo = { preparando:'Preparar', pronto:'Marcar pronto', entregue:'Marcar entregue' };
+      return `
+        <div class="cartao-esteira">
+          <div class="topo-cartao-esteira">
+            <strong>#${p.numero}</strong>
+            <span>${formatarMoeda(p.total)}</span>
+          </div>
+          <div class="cliente-cartao-esteira">${escapar(p.cliente.nome)}</div>
+          <div class="meta-cartao-esteira">${formatarTelefone(p.cliente.telefone)} · ${p.tipoEntrega === 'delivery' ? '🛵 Delivery' : '🏠 Retirada'}</div>
+          <div class="meta-cartao-esteira">${p.itens.reduce((s,i)=>s+i.qtd,0)} itens · ${new Date(p.dataHora).toLocaleString('pt-BR')}</div>
+          <div class="acoes-cartao-esteira">
+            ${proximo ? `<button type="button" class="btn-avancar-status" data-id="${p.id}" data-proximo="${proximo}">${rotulosProximo[proximo]} →</button>` : ''}
+            <button type="button" class="btn-estornar-pedido" data-id="${p.id}">Estornar</button>
+          </div>
+        </div>`;
+    },
+
+    avancarStatusPedido(pedidoId, novoStatus){
+      const executar = () => {
+        const lista = Dados.getPedidos();
+        const pedido = lista.find(p => p.id === pedidoId);
+        if (!pedido) return;
+        pedido.status = novoStatus;
+        Dados.salvarPedidos(lista);
+        this.renderizarQuadroEsteira();
+        this.renderizarPainel();
+        mostrarToast(`Pedido #${pedido.numero} → ${rotuloStatus(novoStatus)}`);
+      };
+      if (this.sessao?.perfil === 'funcionario') executar();
+      else this.executarComAutorizacao(`Avançar o status do pedido #${(Dados.getPedidos().find(p=>p.id===pedidoId)||{}).numero || ''}.`, executar);
+    },
+
+    estornarPedido(pedidoId){
+      const lista = Dados.getPedidos();
+      const pedido = lista.find(p => p.id === pedidoId);
+      if (!pedido) return;
+      const valorTexto = prompt(`Estornar pedido #${pedido.numero} — valor a estornar (R$):`, pedido.total.toFixed(2).replace('.',','));
+      if (valorTexto === null) return;
+      const valor = parseFloat(valorTexto.replace(',', '.'));
+      if (isNaN(valor) || valor <= 0){ mostrarToast('Informe um valor de estorno válido.'); return; }
+
+      const executar = () => {
+        pedido.estornado = true;
+        pedido.valorEstornado = valor;
+        pedido.dataEstorno = new Date().toISOString();
+        pedido.estornadoPor = this.sessao?.nome || 'Desconhecido';
+        pedido.status = 'cancelado';
+        Dados.salvarPedidos(lista);
+        this.renderizarQuadroEsteira();
+        this.renderizarPainel();
+        mostrarToast(`Pedido #${pedido.numero} estornado. Lembre-se de fazer o estorno na maquininha.`);
+      };
+      if (this.sessao?.perfil === 'funcionario') executar();
+      else this.executarComAutorizacao(`Estornar ${formatarMoeda(valor)} do pedido #${pedido.numero}.`, executar);
+    },
+
+    /* ---- Funcionários (cadastro + níveis de permissão) ---- */
+    renderizarFuncionarios(){
+      const tbody = $('#tabela-funcionarios-corpo');
+      if (!tbody) return;
+      this.ligarModalAutorizacao();
+
+      const funcionarios = Dados.getFuncionarios();
+      tbody.innerHTML = funcionarios.map(f => `
+        <tr data-id="${f.id}">
+          <td>${f.foto ? `<img class="foto-mini" src="${f.foto}" alt="">` : `<span class="emoji-mini">👤</span>`}</td>
+          <td><strong>${escapar(f.nome)}</strong></td>
+          <td>${escapar(f.email)}</td>
+          <td><span class="selo-status ${f.perfil === 'admin' ? 'disponivel' : f.perfil === 'gestor' ? 'preparando' : 'novo'}">${rotuloPerfil(f.perfil)}</span></td>
+          <td><span class="selo-status ${f.ativo ? 'disponivel' : 'indisponivel'}">${f.ativo ? 'Ativo' : 'Inativo'}</span></td>
+          <td class="acoes-linha">
+            <button class="btn-editar-funcionario" data-id="${f.id}">Editar</button>
+            <button class="excluir btn-excluir-funcionario" data-id="${f.id}">Excluir</button>
+          </td>
+        </tr>`).join('') || `<tr><td colspan="6"><div class="vazio-admin">Nenhum funcionário cadastrado ainda.</div></td></tr>`;
+
+      $$('.btn-editar-funcionario', tbody).forEach(btn => btn.addEventListener('click', () => this.abrirFormFuncionario(btn.dataset.id)));
+      $$('.btn-excluir-funcionario', tbody).forEach(btn => btn.addEventListener('click', () => {
+        if (btn.dataset.id === this.sessao?.id){ mostrarToast('Você não pode excluir o próprio usuário logado.'); return; }
+        if (!confirm('Excluir este funcionário? Ele não conseguirá mais entrar no painel.')) return;
+        this.executarComAutorizacao('Excluir um funcionário.', () => {
+          Dados.salvarFuncionarios(Dados.getFuncionarios().filter(f => f.id !== btn.dataset.id));
+          this.renderizarFuncionarios();
+          mostrarToast('Funcionário excluído.');
+        });
+      }));
+
+      if (!this.formFuncionarioLigado){
+        this.formFuncionarioLigado = true;
+        $('#btn-novo-funcionario')?.addEventListener('click', () => this.abrirFormFuncionario(null));
+        $('#btn-cancelar-funcionario')?.addEventListener('click', () => this.fecharFormFuncionario());
+        $('#form-funcionario')?.addEventListener('submit', (e) => this.salvarFormFuncionario(e));
+
+        $$('.opcao-perfil', $('#seletor-perfil-funcionario')).forEach(btn => btn.addEventListener('click', () => {
+          $$('.opcao-perfil', $('#seletor-perfil-funcionario')).forEach(b => b.classList.remove('selecionada'));
+          btn.classList.add('selecionada');
+        }));
+
+        $('#campo-funcionario-foto')?.addEventListener('change', async (e) => {
+          const arquivo = e.target.files[0];
+          if (!arquivo) return;
+          if (arquivo.size > 8 * 1024 * 1024){ mostrarToast('Imagem muito grande (máx. 8MB).'); e.target.value=''; return; }
+          try{
+            const dataUrl = await redimensionarImagemParaDataURL(arquivo, 300, 0.75);
+            this.fotoFuncionarioAtual = dataUrl;
+            $('#preview-foto-funcionario').innerHTML = `<img src="${dataUrl}" alt="">`;
+          }catch(err){ mostrarToast('Não foi possível processar essa imagem.'); }
+          e.target.value = '';
+        });
+      }
+    },
+
+    abrirFormFuncionario(id){
+      this.editandoFuncionarioId = id;
+      $('#painel-form-funcionario').hidden = false;
+      $('#painel-form-funcionario').scrollIntoView({ behavior:'smooth', block:'center' });
+      const seletor = $('#seletor-perfil-funcionario');
+      const selecionarPerfil = (perfil) => {
+        $$('.opcao-perfil', seletor).forEach(b => b.classList.toggle('selecionada', b.dataset.perfil === perfil));
+      };
+
+      if (id){
+        const f = Dados.getFuncionarios().find(x => x.id === id);
+        $('#titulo-form-funcionario').textContent = 'Editar funcionário';
+        $('#campo-funcionario-nome').value = f.nome;
+        $('#campo-funcionario-email').value = f.email;
+        $('#campo-funcionario-senha').value = '';
+        $('#rotulo-senha-opcional').textContent = '(deixe em branco pra manter a atual)';
+        $('#campo-funcionario-ativo').checked = f.ativo;
+        selecionarPerfil(f.perfil);
+        this.fotoFuncionarioAtual = f.foto || null;
+        $('#preview-foto-funcionario').innerHTML = f.foto ? `<img src="${f.foto}" alt="">` : '📷';
+      } else {
+        $('#titulo-form-funcionario').textContent = 'Novo funcionário';
+        $('#form-funcionario').reset();
+        $('#rotulo-senha-opcional').textContent = '';
+        $('#campo-funcionario-ativo').checked = true;
+        selecionarPerfil('funcionario');
+        this.fotoFuncionarioAtual = null;
+        $('#preview-foto-funcionario').innerHTML = '📷';
+      }
+    },
+
+    fecharFormFuncionario(){
+      $('#painel-form-funcionario').hidden = true;
+      this.editandoFuncionarioId = null;
+    },
+
+    salvarFormFuncionario(e){
+      e.preventDefault();
+      const nome = $('#campo-funcionario-nome').value.trim();
+      const email = $('#campo-funcionario-email').value.trim().toLowerCase();
+      const senha = $('#campo-funcionario-senha').value;
+      const ativo = $('#campo-funcionario-ativo').checked;
+      const perfilBtn = $('.opcao-perfil.selecionada', $('#seletor-perfil-funcionario'));
+      const perfil = perfilBtn ? perfilBtn.dataset.perfil : 'funcionario';
+
+      if (!nome || !email.includes('@')){ mostrarToast('Preencha nome e um e-mail válido.'); return; }
+
+      const lista = Dados.getFuncionarios();
+      const duplicado = lista.find(f => f.email.toLowerCase() === email && f.id !== this.editandoFuncionarioId);
+      if (duplicado){ mostrarToast('Já existe um funcionário com esse e-mail.'); return; }
+      if (!this.editandoFuncionarioId && !senha){ mostrarToast('Defina uma senha para o novo funcionário.'); return; }
+
+      const executar = () => {
+        if (this.editandoFuncionarioId){
+          const item = lista.find(f => f.id === this.editandoFuncionarioId);
+          Object.assign(item, { nome, email, perfil, ativo, foto: this.fotoFuncionarioAtual });
+          if (senha) item.senha = senha;
+        } else {
+          lista.push({ id: gerarId('func'), nome, email, senha, perfil, ativo, foto: this.fotoFuncionarioAtual });
+        }
+        Dados.salvarFuncionarios(lista);
+        this.fecharFormFuncionario();
+        this.renderizarFuncionarios();
+        mostrarToast('Funcionário salvo com sucesso!');
+      };
+      this.executarComAutorizacao('Salvar dados de um funcionário.', executar);
+    },
+
+    /* ---- Entregadores (motoqueiro + dados da moto) ---- */
+    renderizarEntregadores(){
+      const tbody = $('#tabela-entregadores-corpo');
+      if (!tbody) return;
+      this.ligarModalAutorizacao();
+
+      const entregadores = Dados.getEntregadores();
+      tbody.innerHTML = entregadores.map(en => `
+        <tr data-id="${en.id}">
+          <td><span class="emoji-mini">🏍️</span></td>
+          <td><strong>${escapar(en.nome)}</strong><br><span style="color:var(--fumaca);font-size:.78rem">${en.telefone ? formatarTelefone(en.telefone) : ''}</span></td>
+          <td>${escapar(en.placa || '—')}</td>
+          <td style="font-size:.78rem; color:var(--fumaca);">${en.fotoDocMoto ? '✅ Moto' : '⬜ Moto'} · ${en.fotoDocCondutor ? '✅ Condutor' : '⬜ Condutor'}</td>
+          <td><span class="selo-status ${en.ativo ? 'disponivel' : 'indisponivel'}">${en.ativo ? 'Ativo' : 'Inativo'}</span></td>
+          <td class="acoes-linha">
+            <button class="btn-editar-entregador" data-id="${en.id}">Editar</button>
+            <button class="excluir btn-excluir-entregador" data-id="${en.id}">Excluir</button>
+          </td>
+        </tr>`).join('') || `<tr><td colspan="6"><div class="vazio-admin">Nenhum entregador cadastrado ainda.</div></td></tr>`;
+
+      $$('.btn-editar-entregador', tbody).forEach(btn => btn.addEventListener('click', () => this.abrirFormEntregador(btn.dataset.id)));
+      $$('.btn-excluir-entregador', tbody).forEach(btn => btn.addEventListener('click', () => {
+        if (!confirm('Excluir este entregador?')) return;
+        this.executarComAutorizacao('Excluir um entregador.', () => {
+          Dados.salvarEntregadores(Dados.getEntregadores().filter(en => en.id !== btn.dataset.id));
+          this.renderizarEntregadores();
+          mostrarToast('Entregador excluído.');
+        });
+      }));
+
+      if (!this.formEntregadorLigado){
+        this.formEntregadorLigado = true;
+        $('#btn-novo-entregador')?.addEventListener('click', () => this.abrirFormEntregador(null));
+        $('#btn-cancelar-entregador')?.addEventListener('click', () => { $('#painel-form-entregador').hidden = true; });
+        $('#form-entregador')?.addEventListener('submit', (e) => this.salvarFormEntregador(e));
+        $('#campo-entregador-telefone')?.addEventListener('input', (e) => { e.target.value = formatarTelefone(e.target.value); });
+
+        const ligarUploadDocumento = (inputId, previewId, propriedade) => {
+          $(`#${inputId}`)?.addEventListener('change', async (e) => {
+            const arquivo = e.target.files[0];
+            if (!arquivo) return;
+            if (arquivo.size > 8 * 1024 * 1024){ mostrarToast('Imagem muito grande (máx. 8MB).'); e.target.value=''; return; }
+            try{
+              const dataUrl = await redimensionarImagemParaDataURL(arquivo, 700, 0.75);
+              this[propriedade] = dataUrl;
+              $(`#${previewId}`).innerHTML = `<img src="${dataUrl}" alt="">`;
+            }catch(err){ mostrarToast('Não foi possível processar essa imagem.'); }
+            e.target.value = '';
+          });
+        };
+        ligarUploadDocumento('campo-foto-doc-moto', 'preview-doc-moto', 'fotoDocMotoAtual');
+        ligarUploadDocumento('campo-foto-doc-condutor', 'preview-doc-condutor', 'fotoDocCondutorAtual');
+      }
+    },
+
+    abrirFormEntregador(id){
+      this.editandoEntregadorId = id;
+      $('#painel-form-entregador').hidden = false;
+      $('#painel-form-entregador').scrollIntoView({ behavior:'smooth', block:'center' });
+
+      if (id){
+        const en = Dados.getEntregadores().find(x => x.id === id);
+        $('#titulo-form-entregador').textContent = 'Editar entregador';
+        $('#campo-entregador-nome').value = en.nome;
+        $('#campo-entregador-telefone').value = en.telefone ? formatarTelefone(en.telefone) : '';
+        $('#campo-entregador-placa').value = en.placa || '';
+        $('#campo-entregador-chassi').value = en.chassi || '';
+        $('#campo-entregador-ativo').checked = en.ativo;
+        this.fotoDocMotoAtual = en.fotoDocMoto || null;
+        this.fotoDocCondutorAtual = en.fotoDocCondutor || null;
+        $('#preview-doc-moto').innerHTML = en.fotoDocMoto ? `<img src="${en.fotoDocMoto}" alt="">` : '📄';
+        $('#preview-doc-condutor').innerHTML = en.fotoDocCondutor ? `<img src="${en.fotoDocCondutor}" alt="">` : '🪪';
+      } else {
+        $('#titulo-form-entregador').textContent = 'Novo entregador';
+        $('#form-entregador').reset();
+        $('#campo-entregador-ativo').checked = true;
+        this.fotoDocMotoAtual = null;
+        this.fotoDocCondutorAtual = null;
+        $('#preview-doc-moto').innerHTML = '📄';
+        $('#preview-doc-condutor').innerHTML = '🪪';
+      }
+    },
+
+    salvarFormEntregador(e){
+      e.preventDefault();
+      const nome = $('#campo-entregador-nome').value.trim();
+      if (!nome){ mostrarToast('Informe o nome do entregador.'); return; }
+
+      const dados = {
+        nome,
+        telefone: somenteDigitos($('#campo-entregador-telefone').value),
+        placa: $('#campo-entregador-placa').value.trim().toUpperCase(),
+        chassi: $('#campo-entregador-chassi').value.trim(),
+        ativo: $('#campo-entregador-ativo').checked,
+        fotoDocMoto: this.fotoDocMotoAtual || null,
+        fotoDocCondutor: this.fotoDocCondutorAtual || null
+      };
+
+      const executar = () => {
+        const lista = Dados.getEntregadores();
+        if (this.editandoEntregadorId){
+          Object.assign(lista.find(en => en.id === this.editandoEntregadorId), dados);
+        } else {
+          lista.push(Object.assign({ id: gerarId('entreg') }, dados));
+        }
+        Dados.salvarEntregadores(lista);
+        $('#painel-form-entregador').hidden = true;
+        this.renderizarEntregadores();
+        mostrarToast('Entregador salvo com sucesso!');
+      };
+      this.executarComAutorizacao('Salvar dados de um entregador.', executar);
     },
 
     /* ---- Configurações gerais ---- */
@@ -2210,49 +2716,32 @@
 
       $('#form-config-loja').addEventListener('submit', (e) => {
         e.preventDefault();
-        const novoCfg = Dados.getConfig();
-        novoCfg.nomeLoja = $('#cfg-nome-loja').value.trim();
-        novoCfg.tagline = $('#cfg-tagline').value.trim();
-        novoCfg.whatsapp = somenteDigitos($('#cfg-whatsapp').value);
-        novoCfg.instagram = $('#cfg-instagram').value.trim();
-        novoCfg.facebook = $('#cfg-facebook').value.trim();
-        novoCfg.enderecoTexto = $('#cfg-endereco-texto').value.trim();
-        novoCfg.enderecoMapaBusca = $('#cfg-endereco-mapa').value.trim();
-        novoCfg.enderecoUrlGoogleMaps = $('#cfg-endereco-url-maps').value.trim();
-        const latDigitada = parseFloat($('#cfg-endereco-lat').value);
-        const lngDigitada = parseFloat($('#cfg-endereco-lng').value);
-        novoCfg.enderecoLat = isNaN(latDigitada) ? null : latDigitada;
-        novoCfg.enderecoLng = isNaN(lngDigitada) ? null : lngDigitada;
-        novoCfg.horarios = nomesOrdem.map(({dia, nome}) => {
-          const linha = $(`.campo-linha[data-dia="${dia}"]`, wrapHorarios);
-          return {
-            dia, nome,
-            aberto: $('.cfg-horario-aberto', linha).checked,
-            abertura: $('.cfg-horario-abertura', linha).value || '00:00',
-            fechamento: $('.cfg-horario-fechamento', linha).value || '00:00'
-          };
+        this.executarComAutorizacao('Alterar os dados da loja.', () => {
+          const novoCfg = Dados.getConfig();
+          novoCfg.nomeLoja = $('#cfg-nome-loja').value.trim();
+          novoCfg.tagline = $('#cfg-tagline').value.trim();
+          novoCfg.whatsapp = somenteDigitos($('#cfg-whatsapp').value);
+          novoCfg.instagram = $('#cfg-instagram').value.trim();
+          novoCfg.facebook = $('#cfg-facebook').value.trim();
+          novoCfg.enderecoTexto = $('#cfg-endereco-texto').value.trim();
+          novoCfg.enderecoMapaBusca = $('#cfg-endereco-mapa').value.trim();
+          novoCfg.enderecoUrlGoogleMaps = $('#cfg-endereco-url-maps').value.trim();
+          const latDigitada = parseFloat($('#cfg-endereco-lat').value);
+          const lngDigitada = parseFloat($('#cfg-endereco-lng').value);
+          novoCfg.enderecoLat = isNaN(latDigitada) ? null : latDigitada;
+          novoCfg.enderecoLng = isNaN(lngDigitada) ? null : lngDigitada;
+          novoCfg.horarios = nomesOrdem.map(({dia, nome}) => {
+            const linha = $(`.campo-linha[data-dia="${dia}"]`, wrapHorarios);
+            return {
+              dia, nome,
+              aberto: $('.cfg-horario-aberto', linha).checked,
+              abertura: $('.cfg-horario-abertura', linha).value || '00:00',
+              fechamento: $('.cfg-horario-fechamento', linha).value || '00:00'
+            };
+          });
+          Dados.salvarConfig(novoCfg);
+          mostrarToast('Dados da loja atualizados!');
         });
-        Dados.salvarConfig(novoCfg);
-        mostrarToast('Dados da loja atualizados!');
-      });
-
-      $('#cfg-email-admin-novo').value = cfg.emailAdmin;
-
-      $('#form-config-senha')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const senhaAtual = $('#cfg-senha-atual').value;
-        const novoEmail = $('#cfg-email-admin-novo').value.trim();
-        const novaSenha = $('#cfg-senha-nova').value;
-        const cfgAtual = Dados.getConfig();
-        if (senhaAtual !== cfgAtual.senhaAdmin){ mostrarToast('Senha atual incorreta.'); return; }
-        if (!novoEmail || !novoEmail.includes('@')){ mostrarToast('Informe um e-mail válido.'); return; }
-        if (novaSenha && novaSenha.length < 4){ mostrarToast('A nova senha deve ter ao menos 4 caracteres.'); return; }
-        cfgAtual.emailAdmin = novoEmail;
-        if (novaSenha) cfgAtual.senhaAdmin = novaSenha;
-        Dados.salvarConfig(cfgAtual);
-        $('#cfg-senha-atual').value = '';
-        $('#cfg-senha-nova').value = '';
-        mostrarToast('Dados de segurança atualizados com sucesso!');
       });
 
       // Backup / restauração

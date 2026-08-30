@@ -44,13 +44,16 @@
         <img src="../assets/images/logo.png" alt="Espeto Livre">
         <strong data-cfg="nomeLoja" style="font-size:1.1rem;">Espeto Livre</strong>
       </div>
+      <p id="nome-usuario-admin" style="font-size:.76rem; color:var(--fumaca); margin:8px 0 0;"></p>
     </div>
     <nav>
       <button data-aba="painel" class="ativa">📊 Painel</button>
+      <button data-aba="esteira">🗂️ Esteira de Pedidos</button>
       <button data-aba="cardapio">🍢 Cardápio</button>
       <button data-aba="pedidos">📋 Pedidos</button>
       <button data-aba="entrega">🛵 Entrega</button>
       <button data-aba="receita">💰 Receita</button>
+      <button data-aba="funcionarios">👥 Funcionários</button>
       <button data-aba="configuracoes">⚙️ Configurações</button>
     </nav>
     <a href="../index.html" style="font-size:.82rem; color:var(--fumaca); margin-bottom:10px; display:block;">← Ver site</a>
@@ -80,6 +83,41 @@
         <thead><tr><th>Pedido</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Status</th></tr></thead>
         <tbody id="lista-pedidos-recentes"></tbody>
       </table>
+    </section>
+
+    <!-- ---- ESTEIRA DE PEDIDOS ---- -->
+    <section class="secao-admin" data-secao="esteira">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Esteira de Pedidos</h1>
+          <p>Acompanhe e atualize o status de cada pedido — arraste o funil pra frente conforme for preparando.</p>
+        </div>
+      </div>
+
+      <div class="barra-ferramentas">
+        <div class="busca" style="max-width:420px;">
+          <input type="text" id="busca-esteira" placeholder="Buscar por nome, WhatsApp, e-mail ou nº do pedido...">
+        </div>
+      </div>
+
+      <div class="quadro-esteira" id="quadro-esteira">
+        <div class="coluna-esteira" data-status="novo">
+          <div class="cabecalho-coluna-esteira"><span>Novo</span><span class="contagem-coluna" id="contagem-novo">0</span></div>
+          <div class="cartoes-coluna" id="coluna-cartoes-novo"></div>
+        </div>
+        <div class="coluna-esteira" data-status="preparando">
+          <div class="cabecalho-coluna-esteira"><span>Preparando</span><span class="contagem-coluna" id="contagem-preparando">0</span></div>
+          <div class="cartoes-coluna" id="coluna-cartoes-preparando"></div>
+        </div>
+        <div class="coluna-esteira" data-status="pronto">
+          <div class="cabecalho-coluna-esteira"><span>Pronto</span><span class="contagem-coluna" id="contagem-pronto">0</span></div>
+          <div class="cartoes-coluna" id="coluna-cartoes-pronto"></div>
+        </div>
+        <div class="coluna-esteira" data-status="entregue">
+          <div class="cabecalho-coluna-esteira"><span>Entregue</span><span class="contagem-coluna" id="contagem-entregue">0</span></div>
+          <div class="cartoes-coluna" id="coluna-cartoes-entregue"></div>
+        </div>
+      </div>
     </section>
 
     <!-- ---- CARDÁPIO ---- -->
@@ -244,6 +282,72 @@
         <thead><tr><th>Bairro</th><th>Distância</th><th>Frete calculado</th><th>Ações</th></tr></thead>
         <tbody id="tabela-bairros-corpo"></tbody>
       </table>
+
+      <div class="cabecalho-admin" style="margin-top:34px;">
+        <div>
+          <h3 style="font-family:var(--fonte-corpo); font-size:1.1rem;">Entregadores</h3>
+          <p class="ajuda" style="margin-bottom:0;">Cadastro dos motoqueiros e dos dados da moto usada nas entregas.</p>
+        </div>
+        <button class="btn btn-primario" id="btn-novo-entregador">+ Novo entregador</button>
+      </div>
+
+      <div class="painel-formulario" id="painel-form-entregador" hidden>
+        <h3 id="titulo-form-entregador">Novo entregador</h3>
+        <form id="form-entregador">
+          <div class="grade-formulario">
+            <div class="campo largo">
+              <label for="campo-entregador-nome">Nome do motoqueiro</label>
+              <input type="text" id="campo-entregador-nome" required>
+            </div>
+            <div class="campo">
+              <label for="campo-entregador-telefone">WhatsApp</label>
+              <input type="tel" id="campo-entregador-telefone" placeholder="(85) 90000-0000" inputmode="numeric">
+            </div>
+            <div class="campo">
+              <label class="chave-valor" style="margin-top:10px;">
+                <input type="checkbox" id="campo-entregador-ativo" checked>
+                <span class="interruptor"></span>
+                Ativo
+              </label>
+            </div>
+            <div class="campo">
+              <label for="campo-entregador-placa">Placa da moto</label>
+              <input type="text" id="campo-entregador-placa" placeholder="ABC-1D23" style="text-transform:uppercase;">
+            </div>
+            <div class="campo">
+              <label for="campo-entregador-chassi">Chassi da moto</label>
+              <input type="text" id="campo-entregador-chassi" placeholder="Número do chassi">
+            </div>
+          </div>
+
+          <div class="grade-uploads-documento">
+            <div class="campo">
+              <label class="upload-documento" for="campo-foto-doc-moto">
+                <div class="preview-documento" id="preview-doc-moto">📄</div>
+                <span>Foto do documento da moto</span>
+              </label>
+              <input type="file" id="campo-foto-doc-moto" accept="image/*" style="display:none;">
+            </div>
+            <div class="campo">
+              <label class="upload-documento" for="campo-foto-doc-condutor">
+                <div class="preview-documento" id="preview-doc-condutor">🪪</div>
+                <span>Foto do documento do condutor</span>
+              </label>
+              <input type="file" id="campo-foto-doc-condutor" accept="image/*" style="display:none;">
+            </div>
+          </div>
+
+          <div class="botoes-etapa" style="max-width:340px; margin-top:16px;">
+            <button type="button" class="btn btn-fantasma" id="btn-cancelar-entregador">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Salvar entregador</button>
+          </div>
+        </form>
+      </div>
+
+      <table class="tabela-admin">
+        <thead><tr><th></th><th>Nome</th><th>Placa</th><th>Documentos</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tabela-entregadores-corpo"></tbody>
+      </table>
     </section>
 
     <!-- ---- RECEITA ---- -->
@@ -300,7 +404,17 @@
           repasse ao entregador registrado — os valores acima podem estar um pouco abaixo do real para esses pedidos antigos.
         </p>
 
-        <div class="grade-graficos-receita">
+        <h3 class="subtitulo-perfil" style="margin:26px 0 12px;">Estornos</h3>
+        <p class="ajuda" style="margin-bottom:14px;">
+          Estornos feitos pelo funcionário na Esteira de Pedidos (o dinheiro volta pro cliente na maquininha
+          do estabelecimento — aqui é só o registro contábil, já descontado do lucro líquido acima).
+        </p>
+        <div class="grade-metricas" style="grid-template-columns: repeat(2, 1fr); max-width:600px;">
+          <div class="cartao-metrica"><div class="valor" id="metrica-estornos-qtd">0</div><div class="rotulo">Pedidos estornados</div></div>
+          <div class="cartao-metrica"><div class="valor" id="metrica-estornos-valor" style="color:var(--brasa);">R$ 0,00</div><div class="rotulo">Valor total estornado</div></div>
+        </div>
+
+        <div class="grade-graficos-receita" style="margin-top:26px;">
           <div class="cartao-grafico">
             <h3>Faturamento × custo × lucro</h3>
             <div class="wrap-grafico"><canvas id="grafico-receita-evolucao"></canvas></div>
@@ -416,6 +530,90 @@
       </div>
     </section>
 
+    <!-- ---- FUNCIONÁRIOS ---- -->
+    <section class="secao-admin" data-secao="funcionarios">
+      <div class="cabecalho-admin">
+        <div>
+          <h1>Funcionários</h1>
+          <p>Cadastre quem tem acesso ao painel e o nível de permissão de cada um.</p>
+        </div>
+        <button class="btn btn-primario" id="btn-novo-funcionario">+ Novo funcionário</button>
+      </div>
+
+      <div class="grade-perfis-info">
+        <div class="cartao-perfil-info">
+          <strong>Funcionário</strong>
+          <p>Acesso apenas à Esteira de Pedidos: busca pedidos, atualiza status e pode estornar valores (registrado no financeiro).</p>
+        </div>
+        <div class="cartao-perfil-info">
+          <strong>Gestor</strong>
+          <p>Acesso a todo o painel, mas qualquer alteração exige a senha de um Admin numa janela de confirmação.</p>
+        </div>
+        <div class="cartao-perfil-info">
+          <strong>Admin</strong>
+          <p>Acesso total, sem confirmação — inclusive para gerenciar outros funcionários.</p>
+        </div>
+      </div>
+
+      <div class="painel-formulario" id="painel-form-funcionario" hidden>
+        <h3 id="titulo-form-funcionario">Novo funcionário</h3>
+        <form id="form-funcionario">
+          <div class="campo" style="max-width:220px; margin:0 auto 14px;">
+            <label class="upload-foto-funcionario" for="campo-funcionario-foto">
+              <div class="preview-foto-funcionario" id="preview-foto-funcionario">📷</div>
+              <span>Clique para alterar a foto</span>
+              <span class="ajuda-pequena">Tamanho máximo: 2MB</span>
+            </label>
+            <input type="file" id="campo-funcionario-foto" accept="image/*" style="display:none;">
+          </div>
+          <div class="grade-formulario">
+            <div class="campo largo">
+              <label for="campo-funcionario-nome">Nome completo</label>
+              <input type="text" id="campo-funcionario-nome" required>
+            </div>
+            <div class="campo">
+              <label for="campo-funcionario-email">E-mail (login)</label>
+              <input type="email" id="campo-funcionario-email" required>
+            </div>
+            <div class="campo">
+              <label for="campo-funcionario-senha">Senha <span id="rotulo-senha-opcional" style="font-weight:400;"></span></label>
+              <input type="password" id="campo-funcionario-senha" placeholder="••••••••">
+            </div>
+            <div class="campo largo">
+              <label>Perfil de acesso</label>
+              <div class="seletor-perfil" id="seletor-perfil-funcionario">
+                <button type="button" class="opcao-perfil" data-perfil="funcionario">
+                  <strong>Funcionário</strong><span>Esteira de pedidos</span>
+                </button>
+                <button type="button" class="opcao-perfil" data-perfil="gestor">
+                  <strong>Gestor</strong><span>Requer aprovação</span>
+                </button>
+                <button type="button" class="opcao-perfil" data-perfil="admin">
+                  <strong>Admin</strong><span>Total</span>
+                </button>
+              </div>
+            </div>
+            <div class="campo">
+              <label class="chave-valor" style="margin-top:10px;">
+                <input type="checkbox" id="campo-funcionario-ativo" checked>
+                <span class="interruptor"></span>
+                Ativo (pode fazer login)
+              </label>
+            </div>
+          </div>
+          <div class="botoes-etapa" style="max-width:340px;">
+            <button type="button" class="btn btn-fantasma" id="btn-cancelar-funcionario">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Salvar funcionário</button>
+          </div>
+        </form>
+      </div>
+
+      <table class="tabela-admin">
+        <thead><tr><th></th><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tabela-funcionarios-corpo"></tbody>
+      </table>
+    </section>
+
     <!-- ---- CONFIGURAÇÕES ---- -->
     <section class="secao-admin" data-secao="configuracoes">
       <div class="cabecalho-admin">
@@ -473,19 +671,6 @@
       </div>
 
       <div class="cartao-config">
-        <h3>Segurança</h3>
-        <p class="ajuda">Altere o e-mail e/ou a senha usados para entrar no painel (pela tela de identificação do site ou por aqui).</p>
-        <form id="form-config-senha">
-          <div class="grade-formulario">
-            <div class="campo largo"><label for="cfg-senha-atual">Senha atual (obrigatória para confirmar)</label><input type="password" id="cfg-senha-atual" required></div>
-            <div class="campo"><label for="cfg-email-admin-novo">E-mail de administrador</label><input type="email" id="cfg-email-admin-novo" required></div>
-            <div class="campo"><label for="cfg-senha-nova">Nova senha (deixe em branco para manter a atual)</label><input type="password" id="cfg-senha-nova" placeholder="••••••••"></div>
-          </div>
-          <button type="submit" class="btn btn-primario">Salvar alterações de segurança</button>
-        </form>
-      </div>
-
-      <div class="cartao-config">
         <h3>Backup dos dados</h3>
         <p class="ajuda">
           Como este site não usa um servidor central, os dados ficam salvos apenas neste navegador.
@@ -512,6 +697,21 @@
       </div>
     </section>
 
+  </div>
+</div>
+
+<!-- ============ MODAL DE AUTORIZAÇÃO (gestor precisa da senha de um admin) ============ -->
+<div class="modal-fundo" id="modal-autorizacao-admin">
+  <div class="modal-caixa" style="max-width:400px;">
+    <button type="button" id="btn-fechar-autorizacao" aria-label="Fechar" style="position:absolute; top:16px; right:16px; background:none;border:none;color:var(--fumaca);font-size:1.2rem;">✕</button>
+    <h2>🔒 Autorização necessária</h2>
+    <p class="passo-legenda" id="texto-autorizacao">Essa alteração precisa da senha de um administrador.</p>
+    <div class="campo">
+      <label for="campo-senha-autorizacao">Senha do admin</label>
+      <input type="password" id="campo-senha-autorizacao" placeholder="••••••••">
+    </div>
+    <p class="mensagem-erro" id="erro-autorizacao">Senha incorreta.</p>
+    <button type="button" class="btn btn-primario btn-grande" id="btn-confirmar-autorizacao">Confirmar</button>
   </div>
 </div>
 
