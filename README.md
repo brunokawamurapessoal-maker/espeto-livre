@@ -2,10 +2,12 @@
 
 Site institucional + comanda digital de pedidos para a espetaria **Espeto Livre** (Fortaleza - CE).
 Cliente monta o próprio pedido (cardápio, carrinho, entrega/retirada, pagamento) e o pedido chega pronto
-no WhatsApp da loja. Inclui painel administrativo completo (cardápio, pedidos, entrega, configurações).
+no WhatsApp da loja. Inclui painel administrativo completo (cardápio, pedidos, esteira, receita, funcionários,
+entrega, configurações).
 
-**Site 100% estático** — HTML, CSS e JavaScript puros, sem build step e sem backend. Funciona em
-qualquer hospedagem de arquivos estáticos.
+**Site 100% estático** — HTML, CSS e JavaScript puros, sem build step. Funciona em qualquer hospedagem de
+arquivos estáticos. Os dados ficam salvos no `localStorage` do navegador por padrão (veja a seção
+**Banco de dados real** abaixo se quiser evoluir para um banco compartilhado entre todos os aparelhos).
 
 ---
 
@@ -18,12 +20,39 @@ qualquer hospedagem de arquivos estáticos.
 │   ├── css/styles.css       → design system completo do site
 │   ├── js/scripts.js        → toda a lógica (cardápio, carrinho, frete, admin, área do cliente)
 │   └── images/logo.png      → logomarca
-└── pages/
-    ├── sobre.html
-    ├── contato.html
-    ├── perfil.html           → área do cliente (dados + histórico + sugestões)
-    └── admin.html            → painel administrativo
+├── pages/
+│   ├── sobre.html
+│   ├── contato.html
+│   ├── perfil.html           → área do cliente (dados + histórico + sugestões)
+│   └── admin.html            → painel administrativo
+└── database/
+    ├── schema.sql             → schema completo (PostgreSQL/Supabase), testado com psql real
+    └── seed.sql               → cardápio e bairros padrão prontos pra popular o banco
 ```
+
+---
+
+## 🗄️ Banco de dados real (opcional — Supabase)
+
+O projeto já inclui um schema PostgreSQL completo em `database/schema.sql` (produtos, pedidos, clientes,
+insumos, fichas técnicas, funcionários com permissões, entregadores, RLS configurado) e um `database/seed.sql`
+com o cardápio e bairros atuais, pra quem quiser migrar do localStorage pra um banco compartilhado de verdade.
+
+**Como ativar:**
+1. Crie um projeto grátis em [supabase.com](https://supabase.com)
+2. No projeto → **SQL Editor** → cole todo o conteúdo de `database/schema.sql` → **Run**
+3. Repita com `database/seed.sql` (opcional, popula o cardápio inicial)
+4. Em **Authentication → Users**, crie o primeiro usuário (seu e-mail de admin), depois rode no SQL Editor:
+   ```sql
+   insert into funcionarios (id, nome, email, perfil)
+   values ('COLE-O-ID-DO-USUARIO-AQUI', 'Seu Nome', 'seu@email.com', 'admin');
+   ```
+5. Em **Project Settings → API**, copie a **Project URL** e a **anon public key**
+
+⚠️ **A conexão do frontend (`scripts.js`) com o Supabase ainda não foi implementada** — hoje o site
+continua lendo/gravando no `localStorage`. O schema está pronto e validado, mas trocar cada função de dados
+(`Dados.getX/salvarX`) para chamar o Supabase em vez do localStorage é a próxima etapa, caso queira seguir
+com essa migração. Me avise quando quiser que eu faça essa parte.
 
 ---
 
