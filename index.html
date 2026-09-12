@@ -10,12 +10,13 @@
 </head>
 <body>
 
-<!-- ============ PORTAL DE IDENTIFICAÇÃO (nome + WhatsApp na chegada) ============ -->
+<!-- ============ MODAL DE LOGIN / IDENTIFICAÇÃO (opcional, abre pelo botão "Entrar") ============ -->
 <div class="portal-identificacao" id="portal-identificacao">
   <div class="caixa-portal">
+    <button id="btn-fechar-login" aria-label="Fechar" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--fumaca); font-size:1.3rem; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;">✕</button>
     <img src="assets/images/logo.png" alt="Espeto Livre">
-    <h1>Bem-vindo(a)!</h1>
-    <p id="legenda-identificacao">Antes de montar seu pedido, precisamos do seu nome — é ele que vai ser chamado no balcão na hora da retirada ou entrega.</p>
+    <h1>Entrar</h1>
+    <p id="legenda-identificacao">Informe seu nome e WhatsApp — assim a gente já te reconhece da próxima vez e nem precisa preencher tudo de novo no pedido.</p>
     <form id="form-identificacao-cliente">
       <div class="campo" style="text-align:left;">
         <label for="campo-id-nome">Seu nome</label>
@@ -34,7 +35,7 @@
         <input type="password" id="campo-id-senha" placeholder="••••••••" autocomplete="current-password">
       </div>
       <p class="mensagem-erro" id="erro-identificacao"></p>
-      <button type="submit" class="btn btn-primario btn-grande" id="btn-enviar-identificacao">Começar meu pedido 🍢</button>
+      <button type="submit" class="btn btn-primario btn-grande" id="btn-enviar-identificacao">Entrar 🍢</button>
     </form>
   </div>
 </div>
@@ -57,6 +58,7 @@
     </nav>
 
     <div style="display:flex; align-items:center; gap:12px;">
+      <button class="btn btn-fantasma" id="btn-abrir-login" type="button" style="padding:8px 16px; font-size:.85rem;">Entrar</button>
       <div class="area-cliente" id="area-cliente" hidden>
         <button class="saudacao-cliente" id="btn-saudacao" type="button">Olá, <strong id="saudacao-nome"></strong> <span class="seta-menu">▾</span></button>
         <div class="menu-flutuante-cliente">
@@ -130,11 +132,29 @@
     <button class="fechar-modal" style="position:absolute; top:20px; right:20px; background:none;border:none;color:var(--fumaca);font-size:1.3rem;">✕</button>
 
     <div id="progresso-etapas-wrap">
-      <div class="progresso-etapas"><span class="feita"></span><span></span></div>
+      <div class="progresso-etapas"><span></span><span></span><span></span></div>
     </div>
 
-    <!-- ETAPA 1: retirada/entrega + pagamento -->
+    <!-- ETAPA 1: identificação (pulada automaticamente se já estiver logado) -->
     <section class="etapa-checkout" data-etapa="1">
+      <h2>Seus dados</h2>
+      <p class="passo-legenda">Pra gente saber pra quem é o pedido</p>
+      <div class="campo">
+        <label for="campo-checkout-nome">Nome</label>
+        <input type="text" id="campo-checkout-nome" placeholder="Seu nome">
+      </div>
+      <div class="campo">
+        <label for="campo-checkout-telefone">WhatsApp</label>
+        <input type="tel" id="campo-checkout-telefone" placeholder="(85) 90000-0000" inputmode="numeric">
+      </div>
+      <p class="mensagem-erro" id="erro-checkout-identificacao"></p>
+      <div class="botoes-etapa">
+        <button class="btn btn-primario" id="btn-identificacao-continuar" style="width:100%;">Continuar</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 2: retirada/entrega + pagamento -->
+    <section class="etapa-checkout" data-etapa="2" hidden>
       <h2>Entrega e pagamento</h2>
       <p class="passo-legenda">Como você quer receber o pedido?</p>
 
@@ -193,8 +213,8 @@
       </div>
     </section>
 
-    <!-- ETAPA 2: revisão final -->
-    <section class="etapa-checkout" data-etapa="2" hidden>
+    <!-- ETAPA 3: revisão final -->
+    <section class="etapa-checkout" data-etapa="3" hidden>
       <h2>Confirme seu pedido</h2>
       <p class="passo-legenda">Última checada antes de enviar</p>
       <div class="campo">

@@ -50,6 +50,7 @@
     // link direto pro local verificado no Google Maps (mostra o nome "Espeto Livre" no pino,
     // em vez de só uma coordenada solta). Deixe em branco para usar coordenadas/endereço em texto.
     enderecoUrlGoogleMaps: 'https://www.google.com/maps/place/Espeto+Livre/@-3.7445113,-38.4765676,869m/data=!3m2!1e3!4b1!4m6!3m5!1s0x7c7470068e64bab:0x76af607d565973e6!8m2!3d-3.7445113!4d-38.4765676!16s%2Fg%2F11zgs2y1bw',
+    cidadeUf: 'Fortaleza - CE', // usado para montar o endereço completo do cliente na consulta ao Google Maps
     // Horário estruturado por dia da semana (0=domingo ... 6=sábado). É a partir
     // disso que o site calcula sozinho se mostra "Aberto agora" ou "Fechado agora".
     // "fechamento" menor ou igual à "abertura" é interpretado como virada de noite
@@ -67,6 +68,10 @@
     precoGasolina: 6.43,     // R$ por litro — atualize sempre que o preço mudar
     consumoKmLitro: 12,      // km rodados por litro (moto de entrega)
     taxaBaseEntrega: 4.00,   // taxa fixa que vai integralmente para o entregador (somada ao custo do combustível no cálculo do frete)
+    // chave da API do Google Maps (Distance Matrix), usada para calcular a distância
+    // REAL até o endereço do cliente no checkout. Sem isso, o site usa a distância
+    // aproximada cadastrada por bairro como se fazia antes — o pedido nunca trava.
+    googleMapsApiKey: '',
     // --- Acesso ao admin (mesma tela de identificação do cliente) ---
     emailAdmin: 'brunokawamurapessoal@gmail.com', // e-mail cadastrado como admin
     senhaAdmin: 'espeto123'  // TROQUE essa senha! (Admin > Configurações > Segurança)
@@ -404,6 +409,46 @@
     return Math.ceil(bruto * 2) / 2; // arredonda para cima, múltiplo de R$0,50
   }
 
+  /* ---- Motor de distância real: Google Maps (Distance Matrix) ----
+     Carrega a API do Google Maps sob demanda (só se houver chave configurada)
+     e usa o serviço oficial de Distance Matrix para calcular a distância de
+     condução real entre a loja e o endereço completo do cliente. Se a chave
+     não estiver configurada, a API falhar ou o endereço não for encontrado,
+     quem chama essa função deve cair de volta pra distância aproximada por
+     bairro — o checkout nunca pode travar por causa disso. */
+  let promessaGoogleMaps = null;
+  function carregarGoogleMapsApi(apiKey){
+    if (!apiKey) return Promise.reject(new Error('Nenhuma chave de API do Google Maps configurada.'));
+    if (window.google && window.google.maps && window.google.maps.DistanceMatrixService) return Promise.resolve();
+    if (promessaGoogleMaps) return promessaGoogleMaps;
+    promessaGoogleMaps = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => { promessaGoogleMaps = null; reject(new Error('Não foi possível carregar a API do Google Maps.')); };
+      document.head.appendChild(script);
+    });
+    return promessaGoogleMaps;
+  }
+
+  function calcularDistanciaViaGoogle(enderecoOrigem, enderecoDestino, apiKey){
+    return carregarGoogleMapsApi(apiKey).then(() => new Promise((resolve, reject) => {
+      const service = new google.maps.DistanceMatrixService();
+      service.getDistanceMatrix({
+        origins: [enderecoOrigem],
+        destinations: [enderecoDestino],
+        travelMode: google.maps.TravelMode.DRIVING,
+        unitSystem: google.maps.UnitSystem.METRIC
+      }, (resposta, status) => {
+        if (status !== 'OK'){ reject(new Error('Google Maps respondeu: ' + status)); return; }
+        const elemento = resposta?.rows?.[0]?.elements?.[0];
+        if (!elemento || elemento.status !== 'OK'){ reject(new Error('Endereço não encontrado pelo Google Maps.')); return; }
+        resolve(elemento.distance.value / 1000); // metros -> km
+      });
+    }));
+  }
+
   /* ---- Horário de funcionamento: "aberto agora" / "fechado agora" ---- */
   function minutosDoDia(hhmm){
     const [h, m] = String(hhmm || '00:00').split(':').map(Number);
@@ -578,7 +623,7 @@
 
   function obterIdentificacaoAtual(){
     try{
-      const bruto = sessionStorage.getItem('espetolivre_identificacao');
+      const bruto = localStorage.getItem('espetolivre_identificacao');
       if (!bruto) return null;
       const sessao = JSON.parse(bruto);
       const clientes = Dados.getClientes();
@@ -589,13 +634,15 @@
 
   function renderizarAreaCliente(){
     const area = $('#area-cliente');
-    if (!area) return;
+    const btnEntrar = $('#btn-abrir-login');
     const id = obterIdentificacaoAtual();
     if (!id){
-      area.hidden = true;
+      if (area) area.hidden = true;
+      if (btnEntrar) btnEntrar.hidden = false;
       return;
     }
-    area.hidden = false;
+    if (area) area.hidden = false;
+    if (btnEntrar) btnEntrar.hidden = true;
     const nomeEl = $('#saudacao-nome');
     if (nomeEl) nomeEl.textContent = (id.nome || '').split(' ')[0];
   }
@@ -611,7 +658,7 @@
     document.addEventListener('click', () => area.classList.remove('aberto'));
 
     $('#btn-logout-cliente')?.addEventListener('click', () => {
-      sessionStorage.removeItem('espetolivre_identificacao');
+      localStorage.removeItem('espetolivre_identificacao');
       const base = window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
       window.location.href = base;
     });
@@ -679,7 +726,8 @@
       this.produtos = Dados.getProdutos().filter(p => p.disponivel);
       this.categorias = [...new Set(this.produtos.map(p => p.categoria))];
       this.carregarCarrinhoSalvo();
-      this.iniciarIdentificacao();
+      this.identificacao = obterIdentificacaoAtual();
+      this.ligarGateIdentificacao();
 
       this.renderizarNavCategorias();
       this.renderizarCardapio();
@@ -700,22 +748,10 @@
       try{ sessionStorage.setItem('espetolivre_carrinho_sessao', JSON.stringify(this.carrinho)); }catch(e){}
     },
 
-    iniciarIdentificacao(){
-      const salvo = obterIdentificacaoAtual();
-      if (salvo){
-        this.identificacao = salvo;
-        this.fecharGate();
-      } else {
-        this.abrirGate();
-      }
-      this.ligarGateIdentificacao();
-    },
-
     abrirGate(prefill){
       const portal = $('#portal-identificacao');
       if (!portal) return;
-      portal.classList.remove('fechado');
-      document.body.classList.add('trava-scroll');
+      portal.classList.add('aberto');
       if (prefill && this.identificacao){
         $('#campo-id-nome').value = this.identificacao.nome;
         $('#campo-id-telefone').value = formatarTelefone(this.identificacao.telefone);
@@ -726,8 +762,7 @@
     fecharGate(){
       const portal = $('#portal-identificacao');
       if (!portal) return;
-      portal.classList.add('fechado');
-      document.body.classList.remove('trava-scroll');
+      portal.classList.remove('aberto');
     },
 
     ligarGateIdentificacao(){
@@ -748,7 +783,7 @@
         if (btnEnviar) btnEnviar.textContent = ehAdmin ? 'Entrar no admin 🔐' : 'Começar meu pedido 🍢';
         if (legenda) legenda.textContent = ehAdmin
           ? `E-mail de ${rotuloPerfil(funcionario.perfil).toLowerCase()} reconhecido — informe sua senha para entrar no painel.`
-          : 'Antes de montar seu pedido, precisamos do seu nome — é ele que vai ser chamado no balcão na hora da retirada ou entrega.';
+          : 'Informe seu nome e WhatsApp — assim a gente já te reconhece da próxima vez e nem precisa preencher tudo de novo no pedido.';
         return funcionario;
       };
 
@@ -787,22 +822,30 @@
           return;
         }
         erro.classList.remove('visivel');
-        sessionStorage.setItem('espetolivre_identificacao', JSON.stringify({ nome, telefone, email }));
+        localStorage.setItem('espetolivre_identificacao', JSON.stringify({ nome, telefone, email }));
 
         // guarda também no cadastro de clientes, preservando dados já salvos (ex: endereço)
         const clientes = Dados.getClientes();
         const registroExistente = clientes[telefone] || {};
         clientes[telefone] = Object.assign({}, registroExistente, { nome, telefone, email: email || registroExistente.email || '' });
         Dados.salvarClientes(clientes);
-        sessionStorage.setItem('espetolivre_ultimo_tel', telefone);
+        localStorage.setItem('espetolivre_ultimo_tel', telefone);
 
         this.identificacao = obterIdentificacaoAtual();
         this.fecharGate();
         renderizarAreaCliente();
+        mostrarToast(`Prontinho, ${nome.split(' ')[0]}!`);
       });
 
       campoTelefone?.addEventListener('input', (e) => {
         e.target.value = formatarTelefone(e.target.value);
+      });
+
+      // botão "Entrar" do cabeçalho + fechar pelo X ou clicando fora do card
+      $('#btn-abrir-login')?.addEventListener('click', () => this.abrirGate());
+      $('#btn-fechar-login')?.addEventListener('click', () => this.fecharGate());
+      $('#portal-identificacao')?.addEventListener('click', (e) => {
+        if (e.target.id === 'portal-identificacao') this.fecharGate();
       });
     },
 
@@ -909,6 +952,8 @@
     },
 
     ligarEventosModalProduto(){
+      const modal = $('#modal-produto');
+      modal?.addEventListener('click', (e) => { if (e.target === modal) this.fecharModalProduto(); });
       $('#modal-qtd-mais')?.addEventListener('click', () => {
         this.qtdModalAtual++;
         $('#modal-qtd-valor').textContent = this.qtdModalAtual;
@@ -1057,13 +1102,16 @@
 
       $('#btn-abrir-checkout')?.addEventListener('click', () => {
         if (this.carrinho.length === 0) return;
-        this.etapaAtual = 1;
-        this.mostrarEtapa(1);
+        this.identificacao = obterIdentificacaoAtual();
+        const etapaInicial = this.identificacao ? 2 : 1;
+        this.etapaAtual = etapaInicial;
+        this.mostrarEtapa(etapaInicial);
         modal.classList.add('aberto');
         overlay.classList.add('aberto');
         $('#painel-carrinho')?.classList.remove('aberto');
       });
       $$('.fechar-modal').forEach(b => b.addEventListener('click', () => this.fecharCheckout()));
+      modal.addEventListener('click', (e) => { if (e.target === modal) this.fecharCheckout(); });
 
       // Tipo de entrega (retirada / delivery)
       $$('.opcoes-toggle button', modal).forEach(btn => {
@@ -1077,6 +1125,13 @@
       });
 
       $('#select-bairro')?.addEventListener('change', () => this.atualizarResumoFrete());
+      let debounceEndereco;
+      $$('#campo-rua, #campo-numero').forEach(campo => {
+        campo?.addEventListener('input', () => {
+          clearTimeout(debounceEndereco);
+          debounceEndereco = setTimeout(() => this.atualizarResumoFrete(), 700);
+        });
+      });
 
       // Pagamento
       $$('.opcao-pagamento').forEach(op => {
@@ -1088,31 +1143,92 @@
         });
       });
 
+      $('#btn-identificacao-continuar')?.addEventListener('click', () => this.validarEAvancarIdentificacao());
+      $('#campo-checkout-telefone')?.addEventListener('input', (e) => { e.target.value = formatarTelefone(e.target.value); });
       $('#btn-entrega-continuar')?.addEventListener('click', () => this.validarEAvancarEntrega());
-      $('#btn-revisao-voltar')?.addEventListener('click', () => this.mostrarEtapa(1));
+      $('#btn-revisao-voltar')?.addEventListener('click', () => this.mostrarEtapa(2));
       $('#btn-enviar-pedido')?.addEventListener('click', () => this.finalizarPedido());
       $('#btn-novo-pedido')?.addEventListener('click', () => { this.fecharCheckout(); window.location.reload(); });
+    },
+
+    validarEAvancarIdentificacao(){
+      const erro = $('#erro-checkout-identificacao');
+      const nome = $('#campo-checkout-nome').value.trim();
+      const telefone = somenteDigitos($('#campo-checkout-telefone').value);
+      if (nome.length < 2 || telefone.length < 10){
+        erro.textContent = 'Preencha seu nome e um WhatsApp válido com DDD.';
+        erro.classList.add('visivel');
+        return;
+      }
+      erro.classList.remove('visivel');
+
+      const email = '';
+      localStorage.setItem('espetolivre_identificacao', JSON.stringify({ nome, telefone, email }));
+      const clientes = Dados.getClientes();
+      const registroExistente = clientes[telefone] || {};
+      clientes[telefone] = Object.assign({}, registroExistente, { nome, telefone, email: registroExistente.email || '' });
+      Dados.salvarClientes(clientes);
+      localStorage.setItem('espetolivre_ultimo_tel', telefone);
+
+      this.identificacao = obterIdentificacaoAtual();
+      renderizarAreaCliente();
+      this.mostrarEtapa(2);
     },
 
     mostrarEtapa(n){
       this.etapaAtual = n;
       $$('.etapa-checkout').forEach(el => el.hidden = Number(el.dataset.etapa) !== n);
       $$('.progresso-etapas span').forEach((el, i) => el.classList.toggle('feita', i < n));
-      if (n === 2) this.montarResumoFinal();
+      if (n === 3) this.montarResumoFinal();
     },
 
-    atualizarResumoFrete(){
+    async atualizarResumoFrete(){
       const selectBairro = $('#select-bairro');
       const bairros = Dados.getBairros();
       const bairro = bairros.find(b => b.id === selectBairro.value);
       const aviso = $('#aviso-frete');
       if (!bairro){ aviso.hidden = true; this.freteAtual = 0; return; }
+
       const cfg = Dados.getConfig();
-      const frete = calcularFrete(bairro.distanciaKm, cfg);
-      this.freteAtual = frete;
       this.bairroAtual = bairro;
+      const idChamada = (this._chamadaFreteId = (this._chamadaFreteId || 0) + 1);
+
+      const rua = $('#campo-rua')?.value.trim();
+      const numero = $('#campo-numero')?.value.trim();
+
       aviso.hidden = false;
-      aviso.innerHTML = `Frete para <strong>${escapar(bairro.nome)}</strong> (~${bairro.distanciaKm} km): <strong>${formatarMoeda(frete)}</strong>`;
+      aviso.innerHTML = `Calculando frete para <strong>${escapar(bairro.nome)}</strong>...`;
+
+      let distanciaKm = bairro.distanciaKm;
+      let comoCalculado = 'estimado'; // 'estimado' (por bairro) ou 'google' (distância real)
+
+      const podeTentarGoogle = rua && numero && cfg.googleMapsApiKey
+        && typeof cfg.enderecoLat === 'number' && typeof cfg.enderecoLng === 'number';
+
+      if (podeTentarGoogle){
+        try{
+          const enderecoDestino = `${rua}, ${numero} - ${bairro.nome}, Fortaleza - CE, Brasil`;
+          const origem = { lat: cfg.enderecoLat, lng: cfg.enderecoLng };
+          const distanciaReal = await calcularDistanciaViaGoogle(origem, enderecoDestino, cfg.googleMapsApiKey);
+          if (idChamada !== this._chamadaFreteId) return; // uma digitação mais nova já disparou outra chamada
+          distanciaKm = distanciaReal;
+          comoCalculado = 'google';
+        }catch(erro){
+          if (idChamada !== this._chamadaFreteId) return;
+          console.warn('Distância real indisponível, usando estimativa por bairro:', erro.message);
+        }
+      }
+
+      if (idChamada !== this._chamadaFreteId) return;
+
+      const frete = calcularFrete(distanciaKm, cfg);
+      this.freteAtual = frete;
+      this.distanciaFreteKm = distanciaKm;
+      this.origemDistanciaFrete = comoCalculado;
+      aviso.hidden = false;
+      aviso.innerHTML = comoCalculado === 'google'
+        ? `📍 Distância real via Google Maps: <strong>${distanciaKm.toFixed(1)} km</strong> — frete: <strong>${formatarMoeda(frete)}</strong>`
+        : `Frete para <strong>${escapar(bairro.nome)}</strong> (~${distanciaKm} km, estimado): <strong>${formatarMoeda(frete)}</strong>`;
     },
 
     validarEAvancarEntrega(){
@@ -1132,7 +1248,7 @@
         return;
       }
       erro.classList.remove('visivel');
-      this.mostrarEtapa(2);
+      this.mostrarEtapa(3);
     },
 
     montarResumoFinal(){
@@ -1162,7 +1278,9 @@
         rua: $('#campo-rua').value.trim(),
         numero: $('#campo-numero').value.trim(),
         complemento: $('#campo-complemento').value.trim(),
-        referencia: $('#campo-referencia').value.trim()
+        referencia: $('#campo-referencia').value.trim(),
+        distanciaKm: this.distanciaFreteKm ?? this.bairroAtual?.distanciaKm ?? null,
+        origemDistancia: this.origemDistanciaFrete || 'estimado' // 'google' (real) ou 'estimado' (por bairro)
       } : null;
 
       const subtotal = this.subtotal();
@@ -1213,7 +1331,7 @@
       if (this.tipoEntrega === 'delivery' && endereco) novoRegistro.endereco = endereco;
       clientes[telefone] = novoRegistro;
       Dados.salvarClientes(clientes);
-      sessionStorage.setItem('espetolivre_ultimo_tel', telefone);
+      localStorage.setItem('espetolivre_ultimo_tel', telefone);
       renderizarAreaCliente();
 
       // monta a mensagem do WhatsApp — é isso que garante que o pedido chega
@@ -1373,8 +1491,8 @@
       clientes[telefoneNovo] = novoRegistro;
       Dados.salvarClientes(clientes);
 
-      sessionStorage.setItem('espetolivre_identificacao', JSON.stringify({ nome, telefone: telefoneNovo, email }));
-      sessionStorage.setItem('espetolivre_ultimo_tel', telefoneNovo);
+      localStorage.setItem('espetolivre_identificacao', JSON.stringify({ nome, telefone: telefoneNovo, email }));
+      localStorage.setItem('espetolivre_ultimo_tel', telefoneNovo);
 
       this.identificacao = novoRegistro;
       this.renderizarDados();
@@ -1444,6 +1562,7 @@
     formInsumoLigado: false,
     formFichaLigado: false,
     formFuncionarioLigado: false,
+    formEntregaLigado: false,
     receitaSubNavLigado: false,
     esteiraLigada: false,
     graficoEvolucao: null,
@@ -1649,6 +1768,20 @@
           $('#preview-foto-produto').hidden = true;
           $('#preview-foto-produto-img').src = '';
         });
+
+        $('#btn-add-ficha-produto-form')?.addEventListener('click', () => {
+          const insumoId = $('#campo-produto-ficha-insumo').value;
+          const quantidade = parseFloat($('#campo-produto-ficha-quantidade').value);
+          if (!insumoId || !(quantidade > 0)){ mostrarToast('Selecione o insumo e informe uma quantidade válida.'); return; }
+          const existente = this.fichaTemporariaProduto.find(item => item.insumoId === insumoId);
+          if (existente){ existente.quantidade = quantidade; }
+          else { this.fichaTemporariaProduto.push({ insumoId, quantidade }); }
+          $('#campo-produto-ficha-insumo').value = '';
+          $('#campo-produto-ficha-quantidade').value = '';
+          this.renderizarFichaProdutoForm();
+        });
+
+        $('#campo-produto-preco')?.addEventListener('input', () => this.renderizarFichaProdutoForm());
       }
     },
 
@@ -1663,6 +1796,11 @@
 
       $('#campo-produto-foto').value = '';
 
+      const selectInsumo = $('#campo-produto-ficha-insumo');
+      const insumos = Dados.getInsumos().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+      selectInsumo.innerHTML = '<option value="">Selecione...</option>' +
+        insumos.map(i => `<option value="${i.id}">${escapar(i.nome)} (${i.unidade})</option>`).join('');
+
       if (id){
         const p = Dados.getProdutos().find(x=>x.id===id);
         $('#titulo-form-produto').textContent = 'Editar produto';
@@ -1673,11 +1811,13 @@
         $('#campo-produto-emoji').value = p.emoji || '';
         $('#campo-produto-disponivel').checked = p.disponivel;
         this.fotoProdutoAtual = p.foto || null;
+        this.fichaTemporariaProduto = JSON.parse(JSON.stringify(Dados.getFichasTecnicas()[id] || []));
       } else {
         $('#titulo-form-produto').textContent = 'Novo produto';
         $('#form-produto').reset();
         $('#campo-produto-disponivel').checked = true;
         this.fotoProdutoAtual = null;
+        this.fichaTemporariaProduto = [];
       }
 
       if (this.fotoProdutoAtual){
@@ -1687,12 +1827,61 @@
         $('#preview-foto-produto').hidden = true;
         $('#preview-foto-produto-img').src = '';
       }
+
+      this.renderizarFichaProdutoForm();
     },
     fecharFormProduto(){
       $('#painel-form-produto').hidden = true;
       this.editandoProdutoId = null;
       this.fotoProdutoAtual = null;
+      this.fichaTemporariaProduto = [];
     },
+
+    renderizarFichaProdutoForm(){
+      const lista = $('#lista-ficha-produto-form');
+      if (!lista) return;
+      const insumos = Dados.getInsumos();
+      const mapaInsumos = {}; insumos.forEach(i => { mapaInsumos[i.id] = i; });
+      const itens = this.fichaTemporariaProduto || [];
+
+      lista.innerHTML = itens.length ? itens.map((item, idx) => {
+        const insumo = mapaInsumos[item.insumoId];
+        const custoItem = insumo ? insumo.custoUnidade * item.quantidade : 0;
+        return `
+          <div class="linha-ficha-item">
+            <span class="nome-insumo-ficha">${insumo ? escapar(insumo.nome) : '(insumo removido)'}</span>
+            <span class="qtd-insumo-ficha">${formatarNumero(item.quantidade)} ${insumo ? insumo.unidade : ''}</span>
+            <span class="custo-insumo-ficha">${formatarMoeda(custoItem)}</span>
+            <button type="button" class="remover-item-ficha" data-idx="${idx}" aria-label="Remover">✕</button>
+          </div>`;
+      }).join('') : `<p class="ajuda">Nenhum insumo adicionado ainda.</p>`;
+
+      $$('.remover-item-ficha', lista).forEach(btn => btn.addEventListener('click', () => {
+        this.fichaTemporariaProduto.splice(Number(btn.dataset.idx), 1);
+        this.renderizarFichaProdutoForm();
+      }));
+
+      const custoTotal = itens.reduce((soma, item) => {
+        const insumo = mapaInsumos[item.insumoId];
+        return soma + (insumo ? insumo.custoUnidade * item.quantidade : 0);
+      }, 0);
+      const preco = parseFloat($('#campo-produto-preco').value) || 0;
+      const resumo = $('#resumo-custo-produto-form');
+      if (itens.length){
+        resumo.hidden = false;
+        $('#preview-custo-produto-form').textContent = formatarMoeda(custoTotal);
+        const margemEl = $('#preview-margem-produto-form');
+        if (preco > 0){
+          const margemReais = preco - custoTotal;
+          margemEl.textContent = `${formatarMoeda(margemReais)} (${formatarNumero((margemReais/preco)*100)}%)`;
+        } else {
+          margemEl.textContent = '—';
+        }
+      } else {
+        resumo.hidden = true;
+      }
+    },
+
     salvarFormProduto(e){
       e.preventDefault();
       const dados = {
@@ -1710,13 +1899,27 @@
       }
       this.executarComAutorizacao('Salvar alterações no cardápio.', () => {
         const lista = Dados.getProdutos();
+        let produtoId;
         if (this.editandoProdutoId){
           const item = lista.find(p=>p.id===this.editandoProdutoId);
           Object.assign(item, dados);
+          produtoId = this.editandoProdutoId;
         } else {
-          lista.push(Object.assign({ id: gerarId('prod') }, dados));
+          produtoId = gerarId('prod');
+          lista.push(Object.assign({ id: produtoId }, dados));
         }
         Dados.salvarProdutos(lista);
+
+        // salva a ficha técnica (insumos + quantidades) associada a este produto —
+        // é isso que faz o custo e a margem de lucro serem calculados sozinhos
+        const fichas = Dados.getFichasTecnicas();
+        if (this.fichaTemporariaProduto && this.fichaTemporariaProduto.length){
+          fichas[produtoId] = this.fichaTemporariaProduto;
+        } else {
+          delete fichas[produtoId];
+        }
+        Dados.salvarFichasTecnicas(fichas);
+
         this.fecharFormProduto();
         this.renderizarCardapio();
         this.renderizarPainel();
@@ -1782,6 +1985,14 @@
     },
 
     /* ---- Entrega (bairros + parâmetros de frete) ---- */
+    atualizarSeloGoogleMaps(cfg){
+      const selo = $('#selo-google-maps-status');
+      if (!selo) return;
+      const ativo = !!(cfg.googleMapsApiKey && cfg.enderecoLat != null && cfg.enderecoLng != null);
+      selo.textContent = ativo ? 'ativo' : 'opcional';
+      selo.className = 'selo-status ' + (ativo ? 'disponivel' : 'preparando');
+    },
+
     renderizarEntrega(){
       const tbody = $('#tabela-bairros-corpo');
       if (!tbody) return;
@@ -1812,26 +2023,47 @@
       $('#campo-preco-gasolina').value = cfg.precoGasolina;
       $('#campo-consumo-km').value = cfg.consumoKmLitro;
       $('#campo-taxa-base').value = cfg.taxaBaseEntrega;
+      $('#campo-google-maps-key').value = cfg.googleMapsApiKey || '';
+      this.atualizarSeloGoogleMaps(cfg);
 
-      $('#form-parametros-frete')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const precoGasolina = parseFloat($('#campo-preco-gasolina').value) || 0;
-        const consumoKmLitro = parseFloat($('#campo-consumo-km').value) || 1;
-        const taxaBaseEntrega = parseFloat($('#campo-taxa-base').value) || 0;
-        this.executarComAutorizacao('Alterar os parâmetros de cálculo do frete.', () => {
-          const cfgAtual = Dados.getConfig();
-          cfgAtual.precoGasolina = precoGasolina;
-          cfgAtual.consumoKmLitro = consumoKmLitro;
-          cfgAtual.taxaBaseEntrega = taxaBaseEntrega;
-          Dados.salvarConfig(cfgAtual);
-          this.renderizarEntrega();
-          mostrarToast('Parâmetros de frete atualizados!');
+      // liga os formulários estáticos desta aba só uma vez — renderizarEntrega()
+      // é chamada de novo a cada salvar/excluir bairro, e esses elementos não
+      // são recriados (ficariam com listeners duplicados a cada salvamento)
+      if (!this.formEntregaLigado){
+        this.formEntregaLigado = true;
+
+        $('#form-parametros-frete')?.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const precoGasolina = parseFloat($('#campo-preco-gasolina').value) || 0;
+          const consumoKmLitro = parseFloat($('#campo-consumo-km').value) || 1;
+          const taxaBaseEntrega = parseFloat($('#campo-taxa-base').value) || 0;
+          this.executarComAutorizacao('Alterar os parâmetros de cálculo do frete.', () => {
+            const cfgAtual = Dados.getConfig();
+            cfgAtual.precoGasolina = precoGasolina;
+            cfgAtual.consumoKmLitro = consumoKmLitro;
+            cfgAtual.taxaBaseEntrega = taxaBaseEntrega;
+            Dados.salvarConfig(cfgAtual);
+            this.renderizarEntrega();
+            mostrarToast('Parâmetros de frete atualizados!');
+          });
         });
-      });
 
-      $('#btn-novo-bairro')?.addEventListener('click', () => this.abrirFormBairro(null));
-      $('#form-bairro')?.addEventListener('submit', (e) => this.salvarFormBairro(e));
-      $('#btn-cancelar-bairro')?.addEventListener('click', () => { $('#painel-form-bairro').hidden = true; });
+        $('#form-google-maps')?.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const chave = $('#campo-google-maps-key').value.trim();
+          this.executarComAutorizacao('Alterar a chave de API do Google Maps.', () => {
+            const cfgAtual = Dados.getConfig();
+            cfgAtual.googleMapsApiKey = chave;
+            Dados.salvarConfig(cfgAtual);
+            this.atualizarSeloGoogleMaps(cfgAtual);
+            mostrarToast(chave ? 'Chave salva! O frete vai tentar usar a distância real do Google Maps a partir de agora.' : 'Chave removida — o frete volta a usar a distância estimada por bairro.');
+          });
+        });
+
+        $('#btn-novo-bairro')?.addEventListener('click', () => this.abrirFormBairro(null));
+        $('#form-bairro')?.addEventListener('submit', (e) => this.salvarFormBairro(e));
+        $('#btn-cancelar-bairro')?.addEventListener('click', () => { $('#painel-form-bairro').hidden = true; });
+      }
 
       this.renderizarEntregadores();
     },
@@ -2675,8 +2907,6 @@
     renderizarConfiguracoes(){
       const cfg = Dados.getConfig();
       if (!$('#form-config-loja')) return;
-      $('#cfg-nome-loja').value = cfg.nomeLoja;
-      $('#cfg-tagline').value = cfg.tagline;
       $('#cfg-whatsapp').value = cfg.whatsapp;
       $('#cfg-instagram').value = cfg.instagram;
       $('#cfg-facebook').value = cfg.facebook;
@@ -2685,6 +2915,26 @@
       $('#cfg-endereco-url-maps').value = cfg.enderecoUrlGoogleMaps || '';
       $('#cfg-endereco-lat').value = typeof cfg.enderecoLat === 'number' ? cfg.enderecoLat : '';
       $('#cfg-endereco-lng').value = typeof cfg.enderecoLng === 'number' ? cfg.enderecoLng : '';
+
+      const atualizarPreviewMapaAdmin = () => {
+        const iframe = $('#iframe-mapa-admin');
+        if (!iframe) return;
+        const lat = parseFloat($('#cfg-endereco-lat').value);
+        const lng = parseFloat($('#cfg-endereco-lng').value);
+        if (isNaN(lat) || isNaN(lng)){ iframe.removeAttribute('src'); return; }
+        iframe.src = `https://www.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+      };
+      atualizarPreviewMapaAdmin();
+      if (!this.previewMapaLigado){
+        this.previewMapaLigado = true;
+        let debouncePreview;
+        $$('#cfg-endereco-lat, #cfg-endereco-lng').forEach(campo => {
+          campo?.addEventListener('input', () => {
+            clearTimeout(debouncePreview);
+            debouncePreview = setTimeout(atualizarPreviewMapaAdmin, 500);
+          });
+        });
+      }
 
       const wrapHorarios = $('#wrap-horarios-config');
       const nomesOrdem = [
@@ -2718,8 +2968,6 @@
         e.preventDefault();
         this.executarComAutorizacao('Alterar os dados da loja.', () => {
           const novoCfg = Dados.getConfig();
-          novoCfg.nomeLoja = $('#cfg-nome-loja').value.trim();
-          novoCfg.tagline = $('#cfg-tagline').value.trim();
           novoCfg.whatsapp = somenteDigitos($('#cfg-whatsapp').value);
           novoCfg.instagram = $('#cfg-instagram').value.trim();
           novoCfg.facebook = $('#cfg-facebook').value.trim();

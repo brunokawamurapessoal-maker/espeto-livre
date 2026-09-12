@@ -47,6 +47,11 @@
 
 /* ---- Reset ---- */
 *, *::before, *::after{ box-sizing: border-box; }
+/* Garante que o atributo "hidden" sempre funcione, mesmo em elementos que
+   também definem display:flex/inline-flex/grid em outra regra — sem isso,
+   uma regra mais específica de display pode sobrepor o [hidden] nativo do
+   navegador e o elemento continua aparecendo mesmo "escondido". */
+[hidden]{ display:none !important; }
 html{ scroll-behavior: smooth; }
 body{
   margin:0;
@@ -112,14 +117,15 @@ body.trava-scroll{ overflow:hidden; height:100%; }
 
 .portal-identificacao{
   position:fixed; inset:0; z-index:100;
-  background: var(--carvao-0);
+  background: rgba(10,8,7,.78);
   display:flex; align-items:center; justify-content:center; padding:20px;
-  opacity:1; visibility:visible;
-  transition: opacity .3s ease, visibility .3s ease;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition: opacity .25s ease, visibility .25s ease;
 }
-.portal-identificacao.fechado{ opacity:0; visibility:hidden; pointer-events:none; }
+.portal-identificacao.aberto{ opacity:1; visibility:visible; pointer-events:auto; }
 
 .caixa-portal{
+  position:relative;
   width:100%; max-width:400px; background: var(--carvao-2); border:1px solid var(--linha);
   border-radius: var(--raio); padding: 34px 28px; text-align:center; box-shadow: var(--sombra);
 }

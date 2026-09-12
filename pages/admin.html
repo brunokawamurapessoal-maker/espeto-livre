@@ -171,6 +171,31 @@
               <label for="campo-produto-descricao">Descrição / ingredientes</label>
               <textarea id="campo-produto-descricao" rows="2" placeholder="Ex: Cubos de picanha temperados, grelhados na brasa"></textarea>
             </div>
+            <div class="campo largo">
+              <hr style="border:none; border-top:1px dashed var(--linha); margin:4px 0 16px;">
+              <label style="display:block; margin-bottom:10px;">Ficha técnica (insumos usados neste produto)</label>
+              <p class="ajuda" style="margin-bottom:12px;">
+                Opcional, mas é o que permite calcular o custo e a margem de lucro deste produto automaticamente.
+              </p>
+              <div id="lista-ficha-produto-form" style="margin-bottom:14px;"></div>
+              <div class="grade-formulario" style="align-items:flex-end; margin-bottom:0;">
+                <div class="campo">
+                  <label for="campo-produto-ficha-insumo">Insumo</label>
+                  <select id="campo-produto-ficha-insumo"><option value="">Selecione...</option></select>
+                </div>
+                <div class="campo">
+                  <label for="campo-produto-ficha-quantidade">Quantidade usada</label>
+                  <input type="number" id="campo-produto-ficha-quantidade" step="0.001" min="0" placeholder="0">
+                </div>
+                <div class="campo">
+                  <button type="button" class="btn btn-fantasma" id="btn-add-ficha-produto-form" style="width:100%;">+ Adicionar</button>
+                </div>
+              </div>
+              <div class="resumo-pedido" id="resumo-custo-produto-form" style="margin-top:14px;" hidden>
+                <div class="linha"><span>Custo calculado</span><span id="preview-custo-produto-form">R$ 0,00</span></div>
+                <div class="linha total"><span>Margem de lucro</span><span id="preview-margem-produto-form">—</span></div>
+              </div>
+            </div>
           </div>
           <div class="botoes-etapa" style="max-width:340px;">
             <button type="button" class="btn btn-fantasma" id="btn-cancelar-produto">Cancelar</button>
@@ -248,6 +273,35 @@
           </p>
           <button type="submit" class="btn btn-primario" style="margin-top:12px;">Salvar parâmetros</button>
         </form>
+      </div>
+
+      <div class="cartao-config">
+        <h3>Distância real via Google Maps <span class="selo-status disponivel" id="selo-google-maps-status">opcional</span></h3>
+        <p class="ajuda">
+          Por padrão, o frete usa a distância aproximada cadastrada em cada bairro (abaixo). Se você configurar uma
+          chave de API do Google Maps aqui, o sistema calcula a <strong>distância real de condução</strong> até o
+          endereço completo do cliente (rua e número) no momento do pedido — muito mais preciso, principalmente em
+          bairros grandes. Se a chave não estiver configurada, ou se a consulta falhar por qualquer motivo, o site
+          volta sozinho a usar a distância estimada do bairro — o checkout nunca trava por causa disso.
+        </p>
+        <form id="form-google-maps">
+          <div class="campo largo">
+            <label for="campo-google-maps-key">Chave da API do Google Maps (Distance Matrix)</label>
+            <input type="text" id="campo-google-maps-key" placeholder="AIzaSy...">
+          </div>
+          <button type="submit" class="btn btn-primario">Salvar chave</button>
+        </form>
+        <details style="margin-top:16px;">
+          <summary style="cursor:pointer; color:var(--labareda-suave); font-size:.85rem; font-weight:600;">Como conseguir essa chave (passo a passo)</summary>
+          <ol class="ajuda" style="margin:10px 0 0; padding-left:20px; line-height:1.9;">
+            <li>Acesse o <a href="https://console.cloud.google.com/" target="_blank" style="color:var(--labareda-suave);">Google Cloud Console</a> e crie um projeto (ou use um existente).</li>
+            <li>Em "APIs e serviços", ative a <strong>Distance Matrix API</strong> e a <strong>Maps JavaScript API</strong>.</li>
+            <li>É necessário ativar o faturamento (cartão de crédito) no projeto do Google Cloud — o Google dá uma cota gratuita mensal, mas exige cartão cadastrado mesmo para usá-la.</li>
+            <li>Em "Credenciais", crie uma chave de API.</li>
+            <li><strong>Importante:</strong> restrinja a chave por "referenciador HTTP" (HTTP referrer) com o domínio do seu site, pra ninguém mais conseguir usá-la.</li>
+            <li>Copie a chave gerada e cole no campo acima.</li>
+          </ol>
+        </details>
       </div>
 
       <div class="cabecalho-admin" style="margin-top:10px;">
@@ -628,8 +682,6 @@
         <p class="ajuda">Essas informações aparecem no site (cabeçalho, rodapé, página de contato).</p>
         <form id="form-config-loja">
           <div class="grade-formulario">
-            <div class="campo"><label for="cfg-nome-loja">Nome da loja</label><input type="text" id="cfg-nome-loja" required></div>
-            <div class="campo"><label for="cfg-tagline">Frase de efeito</label><input type="text" id="cfg-tagline"></div>
             <div class="campo"><label for="cfg-whatsapp">WhatsApp (DDI+DDD+número, só números)</label><input type="text" id="cfg-whatsapp" placeholder="5585990000000" required></div>
             <div class="campo"><label for="cfg-instagram">Link do Instagram</label><input type="url" id="cfg-instagram" placeholder="https://instagram.com/seuusuario"></div>
             <div class="campo"><label for="cfg-facebook">Link do Facebook (opcional)</label><input type="url" id="cfg-facebook" placeholder="https://facebook.com/suapagina"></div>
@@ -645,6 +697,12 @@
                 verificado e copie o link. Isso mostra o nome da loja no pino (não só uma coordenada solta). Se
                 deixar em branco, o site usa a latitude/longitude abaixo.
               </p>
+            </div>
+            <div class="campo largo">
+              <label>Pré-visualização (confirme se o pino cai no lugar certo antes de salvar)</label>
+              <div class="mapa-embed" style="aspect-ratio:16/7;">
+                <iframe id="iframe-mapa-admin" src="" loading="lazy" title="Pré-visualização da localização"></iframe>
+              </div>
             </div>
             <div class="campo">
               <label for="cfg-endereco-lat">Latitude (posição do mapa)</label>
