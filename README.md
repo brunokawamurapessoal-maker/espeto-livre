@@ -1,143 +1,120 @@
+Aqui tens a versão reescrita do teu `README.md`, limpa de comentários e instruções no tom de assistente/IA, mantendo a documentação técnica profissional, organizada e direta ao ponto:
+
+```markdown
 # 🔥 Espeto Livre — Comanda Digital
 
-Site institucional + comanda digital de pedidos para a espetaria **Espeto Livre** (Fortaleza - CE).
-Cliente monta o próprio pedido (cardápio, carrinho, entrega/retirada, pagamento) e o pedido chega pronto
-no WhatsApp da loja. Inclui painel administrativo completo (cardápio, pedidos, esteira, receita, funcionários,
-entrega, configurações).
+Site institucional e comanda digital de pedidos para a espetaria **Espeto Livre** (Fortaleza - CE).
+Permite que o cliente monte o próprio pedido (cardápio, carrinho, entrega/retirada, pagamento) e envie a solicitação formatada para o WhatsApp do estabelecimento. Inclui painel administrativo completo para gestão de cardápio, pedidos, esteira de produção, relatórios, funcionários, entregas e configurações.
 
-**Site 100% estático** — HTML, CSS e JavaScript puros, sem build step. Funciona em qualquer hospedagem de
-arquivos estáticos. Os dados ficam salvos no `localStorage` do navegador por padrão (veja a seção
-**Banco de dados real** abaixo se quiser evoluir para um banco compartilhado entre todos os aparelhos).
+**Site 100% estático** — Desenvolvido em HTML, CSS e JavaScript puros, sem etapa de build. Compatível com qualquer hospedagem de ficheiros estáticos.
 
 ---
 
-## 📁 Estrutura do projeto
+## 📁 Estrutura do Projeto
+
 
 ```
-├── index.html              → comanda digital (cardápio + carrinho + checkout)
-├── .nojekyll                → evita que o GitHub Pages processe o site como Jekyll
+
+├── index.html              → Comanda digital (cardápio + carrinho + checkout)
+├── .nojekyll                → Impede o processamento do site via Jekyll no GitHub Pages
 ├── assets/
-│   ├── css/styles.css       → design system completo do site
-│   ├── js/scripts.js        → toda a lógica (cardápio, carrinho, frete, admin, área do cliente)
-│   └── images/logo.png      → logomarca
+│   ├── css/styles.css       → Design system e estilos globais
+│   ├── js/scripts.js        → Regras de negócio (cardápio, carrinho, frete, admin, área do cliente)
+│   └── images/logo.png      → Logomarca do estabelecimento
 ├── pages/
 │   ├── sobre.html
 │   ├── contato.html
-│   ├── perfil.html           → área do cliente (dados + histórico + sugestões)
-│   └── admin.html            → painel administrativo
+│   ├── perfil.html          → Área do cliente (dados, histórico e sugestões)
+│   └── admin.html           → Painel administrativo
 └── database/
-    ├── schema.sql             → schema completo (PostgreSQL/Supabase), testado com psql real
-    └── seed.sql               → cardápio e bairros padrão prontos pra popular o banco
+├── schema.sql           → Schema PostgreSQL/Supabase (produtos, pedidos, RLS, etc.)
+└── seed.sql             → Povoamento inicial (cardápio e bairros padrão)
+
 ```
 
 ---
 
-## 🗄️ Banco de dados real (opcional — Supabase)
+## 💾 Persistência de Dados
 
-O projeto já inclui um schema PostgreSQL completo em `database/schema.sql` (produtos, pedidos, clientes,
-insumos, fichas técnicas, funcionários com permissões, entregadores, RLS configurado) e um `database/seed.sql`
-com o cardápio e bairros atuais, pra quem quiser migrar do localStorage pra um banco compartilhado de verdade.
+### Padrão (Local)
+Por padrão, a aplicação funciona sem backend. Todos os dados (cardápio, histórico e configurações) são armazenados no `localStorage` do navegador do utilizador. Os pedidos realizados são formatados e enviados diretamente para o WhatsApp da loja.
 
-**Como ativar:**
-1. Crie um projeto grátis em [supabase.com](https://supabase.com)
-2. No projeto → **SQL Editor** → cole todo o conteúdo de `database/schema.sql` → **Run**
-3. Repita com `database/seed.sql` (opcional, popula o cardápio inicial)
-4. Em **Authentication → Users**, crie o primeiro usuário (seu e-mail de admin), depois rode no SQL Editor:
+*Para transferir dados entre dispositivos no modo local, utilize a funcionalidade de exportação e importação em **Admin → Configurações → Backup**.*
+
+### Integração com Banco de Dados (Supabase / PostgreSQL)
+O repositório inclui a estrutura pronta para migração para um banco de dados relacional e partilhado.
+
+**Passos para configuração do banco:**
+1. Criar um projeto na [Supabase](https://supabase.com).
+2. No painel da plataforma, aceder ao **SQL Editor** e executar o script `database/schema.sql`.
+3. (Opcional) Executar o script `database/seed.sql` para carregar o cardápio e bairros iniciais.
+4. Criar o primeiro utilizador em **Authentication → Users**.
+5. Associar o ID do utilizador criado na tabela de funcionários via SQL Editor:
    ```sql
    insert into funcionarios (id, nome, email, perfil)
-   values ('COLE-O-ID-DO-USUARIO-AQUI', 'Seu Nome', 'seu@email.com', 'admin');
-   ```
-5. Em **Project Settings → API**, copie a **Project URL** e a **anon public key**
+   values ('ID_DO_USUARIO_AQUI', 'Nome do Administrador', 'email@dominio.com', 'admin');
 
-⚠️ **A conexão do frontend (`scripts.js`) com o Supabase ainda não foi implementada** — hoje o site
-continua lendo/gravando no `localStorage`. O schema está pronto e validado, mas trocar cada função de dados
-(`Dados.getX/salvarX`) para chamar o Supabase em vez do localStorage é a próxima etapa, caso queira seguir
-com essa migração. Me avise quando quiser que eu faça essa parte.
+```
+
+6. Obter a **Project URL** e a **anon public key** em **Project Settings → API** para futura integração no cliente web.
 
 ---
 
-## ▶️ Rodando localmente
+## ▶️ Execução Local
 
-Não precisa instalar nada. Duas opções:
+Não é necessária a instalação de dependências ou gestores de pacotes.
 
-**Opção 1 — abrir direto:** dê duplo-clique em `index.html`.
+**Opção 1 — Direta:**
+Abrir o ficheiro `index.html` num navegador web.
 
-**Opção 2 — servidor local** (recomendado, evita eventuais bloqueios do navegador para `file://`):
+**Opção 2 — Servidor Local (Recomendado):**
+
 ```bash
-# na pasta do projeto
+# Na raiz do projeto
 python3 -m http.server 8080
-# depois acesse http://localhost:8080
+# Aceder via navegador em http://localhost:8080
+
 ```
 
 ---
 
-## 🚀 Deploy — GitHub Pages (recomendado)
+## 🚀 Publicação e Deploy (GitHub Pages)
 
-Como o site já vai para o GitHub, o **GitHub Pages** é a opção mais direta: hospedagem gratuita,
-HTTPS automático, domínio próprio grátis (`seuusuario.github.io`) e suporte a domínio personalizado
-(ex: `www.espetolivre.com.br`) sem custo. Publica direto do repositório, sem passo de build.
+### 1. Inicialização e Envio do Código
 
-### 1. Criar o repositório e subir o código
 ```bash
-# dentro da pasta do projeto (que já vem com o git iniciado)
-git remote add origin https://github.com/SEU-USUARIO/espeto-livre.git
+git remote add origin [https://github.com/SEU-USUARIO/espeto-livre.git](https://github.com/SEU-USUARIO/espeto-livre.git)
 git branch -M main
 git push -u origin main
+
 ```
-*(troque `SEU-USUARIO` pelo seu usuário do GitHub — crie o repositório vazio em github.com/new antes de rodar o `push`, sem adicionar README/gitignore por lá para não conflitar)*
 
-### 2. Ativar o GitHub Pages
-1. No repositório, vá em **Settings → Pages**
-2. Em **Build and deployment → Source**, selecione **Deploy from a branch**
-3. Em **Branch**, selecione **main** e a pasta **/ (root)** → **Save**
-4. Aguarde 1-2 minutos — o site fica no ar em `https://SEU-USUARIO.github.io/espeto-livre/`
+### 2. Configuração do GitHub Pages
 
-### 3. (Opcional) Domínio próprio
-Em **Settings → Pages → Custom domain**, digite seu domínio (ex: `www.espetolivre.com.br`) e configure
-no seu provedor de DNS os registros indicados pelo GitHub (documentação oficial:
-[docs.github.com/pages/custom-domain](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site)).
-Depois marque **Enforce HTTPS**.
+1. No repositório no GitHub, aceder a **Settings → Pages**.
+2. Em **Build and deployment → Source**, selecionar **Deploy from a branch**.
+3. Definir a branch **main** e a pasta **/ (root)**, clicando em **Save**.
+4. O acesso estará disponível no endereço `https://SEU-USUARIO.github.io/espeto-livre/`.
 
-### Alternativas (também gratuitas, se preferir)
-| Plataforma | Vantagem principal |
-|---|---|
-| **Cloudflare Pages** | Banda ilimitada, CDN mais amplo (300+ cidades) |
-| **Netlify** | Deploy por arrastar-e-soltar, formulários prontos |
-| **Vercel** | Deploy automático a cada push, preview por branch |
+### 3. Configuração de Domínio Personalizado (Opcional)
 
-Todas funcionam do mesmo jeito com este projeto: conectam no repositório do GitHub e publicam
-automaticamente a cada `git push` — sem nenhuma configuração de build (é só apontar a raiz do repositório).
+Definir o domínio pretendido em **Settings → Pages → Custom domain** e configurar os registos DNS no fornecedor do domínio conforme a [documentação do GitHub Pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site?utm_source=gemini).
 
 ---
 
-## 🔑 Acesso ao painel administrativo
+## 🔑 Acesso ao Painel Administrativo
 
-Acesse pela tela inicial do site (digite seu e-mail de admin no campo de identificação) ou direto por
-`pages/admin.html`.
+O acesso pode ser feito pela interface inicial ou diretamente pelo endereço `/pages/admin.html`.
 
-- **E-mail:** `brunokawamurapessoal@gmail.com`
-- **Senha padrão:** `espeto123` ⚠️ **troque assim que possível** em *Admin → Configurações → Segurança*
-
----
-
-## ⚠️ Como os dados são guardados (importante)
-
-Este projeto **não tem banco de dados nem servidor**. Cardápio, pedidos, clientes e configurações ficam
-salvos no `localStorage` do navegador — ou seja, **por aparelho/navegador**, não sincronizado entre eles.
-
-Na prática:
-- Pedidos feitos pelo cliente chegam formatados no **WhatsApp da loja** — é esse canal que garante que a
-  equipe recebe o pedido na hora, independente de qual aparelho o cliente usou.
-- Se vocês editarem o cardápio em mais de um aparelho, as mudanças **não sincronizam sozinhas**.
-- Use **Admin → Configurações → Backup** para exportar um `.json` com todos os dados e importar em outro
-  aparelho quando precisar.
-- Se um dia quiserem sincronização de verdade entre todos os aparelhos (backend + banco de dados), dá pra
-  evoluir esse projeto — é uma mudança de arquitetura maior, avise quando quiser seguir por esse caminho.
+* **E-mail padrão:** `brunokawamurapessoal@gmail.com`
+* **Chave de acesso padrão:** `espeto123` *(Recomenda-se a alteração em Admin → Configurações → Segurança após a primeira inicialização)*
 
 ---
 
-## 🛠️ Customização rápida
+## 🛠️ Personalização
 
-Praticamente tudo é editável direto pelo painel admin (Cardápio, Pedidos, Entrega, Configurações), sem
-precisar mexer em código. Para alterar os **valores padrão** que aparecem na primeira visita (antes de
-qualquer edição pelo admin), edite o objeto `CONFIG_PADRAO` no topo de `assets/js/scripts.js`.
+A gestão do cardápio, taxa de entrega, setores e definições do sistema é realizada diretamente no painel administrativo. Para alterar os dados iniciais que povoam a aplicação antes da primeira utilização, edite a constante `CONFIG_PADRAO` localizada no início do ficheiro `assets/js/scripts.js`.
+
+```
+
+```
