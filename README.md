@@ -1,6 +1,3 @@
-Aqui tens a versão reescrita do teu `README.md`, limpa de comentários e instruções no tom de assistente/IA, mantendo a documentação técnica profissional, organizada e direta ao ponto:
-
-```markdown
 # 🔥 Espeto Livre — Comanda Digital
 
 Site institucional e comanda digital de pedidos para a espetaria **Espeto Livre** (Fortaleza - CE).
