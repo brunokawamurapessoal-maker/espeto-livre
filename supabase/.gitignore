@@ -1,0 +1,13 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# Executáveis do Supabase e CLI
+*.exe
+supabase/.temp/
+node_modules/
