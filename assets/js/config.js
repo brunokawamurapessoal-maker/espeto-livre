@@ -9,5 +9,5 @@
    ========================================================================== */
 window.ESPETO_SUPABASE = {
   url: 'https://tscxuzlulxsetllrbpim.supabase.co',
-  anonKey: '' // <<< cole aqui a chave "anon public" do seu projeto
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzY3h1emx1bHhzZXRsbHJicGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MTQzMzAsImV4cCI6MjEwNTI5MDMzMH0.8MKFLG5ISegMrCrClHzt0q0JRNUUiQJfxJ5BKKMkGXQ' // <<< cole aqui a chave "anon public" do seu projeto
 };
